@@ -15,11 +15,11 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
-ENV PORT=3000
+ENV PORT=3001
 
 COPY package.json ./
 COPY --from=build /app/backend ./backend
 
-EXPOSE 3000
+EXPOSE 3001
 
 CMD ["node", "backend/src/server.js"]

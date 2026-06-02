@@ -118,6 +118,57 @@ export function applyEnvironmentPreset({ mode, scene, renderer, lighting, terrai
   setMaterialColor(terrain.grid.material, [preset.gridMajor, preset.gridMinor]);
 }
 
+export function updateStreetLightDynamicLights(streetLights, referencePosition) {
+  if (!streetLights?.group?.visible || !referencePosition) {
+    disableStreetLightDynamicLights(streetLights);
+    return;
+  }
+
+  const sources = streetLights.dynamicSources ?? [];
+  const radius = streetLights.activeDynamicLightRadius ?? 62;
+  const radiusSquared = radius * radius;
+  const candidates = [];
+
+  for (const source of sources) {
+    const distanceSquared =
+      (source.lightPosition.x - referencePosition.x) ** 2 +
+      (source.lightPosition.z - referencePosition.z) ** 2;
+
+    if (distanceSquared <= radiusSquared) {
+      candidates.push({ source, distanceSquared });
+    }
+  }
+
+  candidates.sort((a, b) => a.distanceSquared - b.distanceSquared);
+
+  for (let i = 0; i < streetLights.pointLights.length; i += 1) {
+    const pointLight = streetLights.pointLights[i];
+    const spotLight = streetLights.spotLights[i];
+    const candidate = candidates[i];
+
+    if (!candidate) {
+      pointLight.visible = false;
+      pointLight.intensity = 0;
+      spotLight.visible = false;
+      spotLight.intensity = 0;
+      continue;
+    }
+
+    const distanceRatio = Math.sqrt(candidate.distanceSquared) / radius;
+    const falloff = 1 - THREE.MathUtils.smoothstep(distanceRatio, 0.62, 1);
+    const source = candidate.source;
+
+    pointLight.position.copy(source.lightPosition);
+    pointLight.visible = true;
+    pointLight.intensity = streetLights.pointIntensity * falloff;
+
+    spotLight.position.copy(source.lightPosition);
+    spotLight.target.position.copy(source.targetPosition);
+    spotLight.visible = true;
+    spotLight.intensity = streetLights.spotIntensity * falloff;
+  }
+}
+
 function updateStreetLights(streetLights, preset) {
   if (!streetLights?.group) {
     return;
@@ -125,14 +176,10 @@ function updateStreetLights(streetLights, preset) {
 
   const lightsAreVisible = preset.streetLightIntensity > 0 || preset.streetLightGlowOpacity > 0;
   streetLights.group.visible = lightsAreVisible;
+  streetLights.pointIntensity = preset.streetLightIntensity;
+  streetLights.spotIntensity = preset.streetLightSpotIntensity;
 
-  for (const light of streetLights.pointLights ?? []) {
-    light.intensity = preset.streetLightIntensity;
-  }
-
-  for (const light of streetLights.spotLights ?? []) {
-    light.intensity = preset.streetLightSpotIntensity;
-  }
+  disableStreetLightDynamicLights(streetLights);
 
   for (const glow of streetLights.glowSprites ?? []) {
     glow.material.opacity = preset.streetLightGlowOpacity;
@@ -140,6 +187,22 @@ function updateStreetLights(streetLights, preset) {
 
   for (const pool of streetLights.lightPools ?? []) {
     pool.material.opacity = preset.streetLightPoolOpacity;
+  }
+}
+
+function disableStreetLightDynamicLights(streetLights) {
+  if (!streetLights) {
+    return;
+  }
+
+  for (const light of streetLights.pointLights ?? []) {
+    light.visible = false;
+    light.intensity = 0;
+  }
+
+  for (const light of streetLights.spotLights ?? []) {
+    light.visible = false;
+    light.intensity = 0;
   }
 }
 

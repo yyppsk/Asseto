@@ -47,12 +47,25 @@ a {
   right: clamp(0.9rem, 2vw, 1.4rem);
   z-index: 4;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  width: min(12.5rem, calc(100vw - 2rem));
+  gap: 0.24rem;
+  width: min(14.25rem, calc(100vw - 2rem));
   padding: 0.22rem;
   border: 1px solid rgb(244 241 232 / 0.22);
   background: rgb(11 15 19 / 0.58);
   box-shadow: 0 0.7rem 2.5rem rgb(0 0 0 / 0.22);
+}
+
+.control-row {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.control-row--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.control-row--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .environment-controls button {
@@ -60,17 +73,36 @@ a {
   border: 0;
   background: transparent;
   color: #d7ded3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
   font: inherit;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0;
   text-transform: uppercase;
   cursor: pointer;
 }
 
+.environment-controls button span {
+  width: 1em;
+  color: #ffce56;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
 .environment-controls button[aria-pressed="true"] {
   background: #ffce56;
   color: #101316;
+}
+
+.environment-controls button[aria-pressed="true"] span {
+  color: #101316;
+}
+
+.wind-toggle {
+  width: 100%;
 }
 
 .scroll-story {
@@ -214,7 +246,7 @@ h2 {
 
 .race-hud {
   position: fixed;
-  top: clamp(4rem, 6.5vw, 4.9rem);
+  top: clamp(8rem, 10vw, 8.8rem);
   right: clamp(0.9rem, 2vw, 1.4rem);
   z-index: 3;
   display: grid;
@@ -407,7 +439,7 @@ body[data-environment="day"][data-stage="contact"]::before {
   }
 
   .race-hud {
-    top: 4.75rem;
+    top: 8.9rem;
     left: 1rem;
     right: 1rem;
     width: auto;

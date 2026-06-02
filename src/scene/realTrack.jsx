@@ -41,7 +41,8 @@ export const REAL_TRACK_MODELS = {
     streetLightMinSamples: 18,
     streetLightMinY: 5.2,
     streetLightVertexStride: 4,
-    streetLightMaxPointLights: 18,
+    streetLightDynamicLightCount: 6,
+    streetLightActivationRadius: 62,
     streetLightPoolSize: 13,
     minRoutePoints: 32,
   },
@@ -151,13 +152,9 @@ function createStreetLightRig(model, config) {
   const surfaceMeshes = collectStreetLightSurfaceMeshes(model);
   const glowSprites = [];
   const lightPools = [];
+  const dynamicSources = [];
   const pointLights = [];
   const spotLights = [];
-  const pointLightClusters = new Set(
-    [...clusters]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, config.streetLightMaxPointLights ?? 18),
-  );
 
   for (const cluster of clusters) {
     const position = cluster.center.clone();
@@ -190,28 +187,45 @@ function createStreetLightRig(model, config) {
     lightPools.push(pool);
     group.add(pool);
 
-    if (pointLightClusters.has(cluster)) {
-      const light = new THREE.PointLight(0xffb84a, 0, 24, 2.1);
-      light.name = "street-light-point";
-      light.position.copy(position);
-      pointLights.push(light);
-      group.add(light);
-
-      const target = new THREE.Object3D();
-      target.name = "street-light-spot-target";
-      target.position.copy(poolPosition);
-
-      const spotLight = new THREE.SpotLight(0xffba55, 0, 32, 0.62, 0.7, 2);
-      spotLight.name = "street-light-spot";
-      spotLight.position.copy(position);
-      spotLight.target = target;
-      spotLight.castShadow = false;
-      spotLights.push(spotLight);
-      group.add(target, spotLight);
-    }
+    dynamicSources.push({
+      lightPosition: position.clone(),
+      targetPosition: poolPosition.clone(),
+    });
   }
 
-  return { group, glowSprites, lightPools, pointLights, spotLights };
+  const dynamicLightCount = Math.min(
+    config.streetLightDynamicLightCount ?? 6,
+    dynamicSources.length,
+  );
+
+  for (let i = 0; i < dynamicLightCount; i += 1) {
+    const pointLight = new THREE.PointLight(0xffb84a, 0, 24, 2.1);
+    pointLight.name = "street-light-point";
+    pointLight.visible = false;
+    pointLights.push(pointLight);
+
+    const target = new THREE.Object3D();
+    target.name = "street-light-spot-target";
+
+    const spotLight = new THREE.SpotLight(0xffba55, 0, 32, 0.62, 0.7, 2);
+    spotLight.name = "street-light-spot";
+    spotLight.target = target;
+    spotLight.castShadow = false;
+    spotLight.visible = false;
+    spotLights.push(spotLight);
+    group.add(target, pointLight, spotLight);
+  }
+
+  return {
+    group,
+    glowSprites,
+    lightPools,
+    dynamicSources,
+    pointLights,
+    spotLights,
+    activeDynamicLightCount: dynamicLightCount,
+    activeDynamicLightRadius: config.streetLightActivationRadius ?? 62,
+  };
 }
 
 function collectStreetLightClusters(model, config) {

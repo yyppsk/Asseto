@@ -18,8 +18,16 @@
       <canvas id="race-canvas" aria-label="Scroll-driven Spa-Francorchamps race scene"></canvas>
 
       <aside class="environment-controls" aria-label="Environment controls">
-        <button type="button" data-environment-mode="day" aria-pressed="false">Day</button>
-        <button type="button" data-environment-mode="night" aria-pressed="true">Night</button>
+        <div class="control-row control-row--two">
+          <button type="button" data-environment-mode="day" aria-pressed="false"><span aria-hidden="true">☀</span>Day</button>
+          <button type="button" data-environment-mode="night" aria-pressed="true"><span aria-hidden="true">◐</span>Night</button>
+        </div>
+        <div class="control-row control-row--three">
+          <button type="button" data-weather-mode="clear" aria-pressed="true"><span aria-hidden="true">○</span>Clear</button>
+          <button type="button" data-weather-mode="rain" aria-pressed="false"><span aria-hidden="true">▥</span>Rain</button>
+          <button type="button" data-weather-mode="snow" aria-pressed="false"><span aria-hidden="true">✱</span>Snow</button>
+        </div>
+        <button type="button" class="wind-toggle" data-wind-toggle aria-pressed="false"><span aria-hidden="true">≋</span>Wind</button>
       </aside>
 
       <main class="scroll-story" aria-label="Asseto racing story">

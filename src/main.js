@@ -10,7 +10,8 @@ import {
 } from './scene/effects.jsx';
 import { createGroundGrid, getGridCellFromPosition } from './scene/groundGrid.jsx';
 import { loadRealTrackModel } from './scene/realTrack.jsx';
-import { addLighting, addTerrain, applyEnvironmentPreset } from './scene/world.jsx';
+import { createWeatherSystem, updateWeatherSystem } from './scene/weather.jsx';
+import { addLighting, addTerrain, applyEnvironmentPreset, updateStreetLightDynamicLights } from './scene/world.jsx';
 
 const ACTIVE_TRACK_VERSION = 'real-model';
 const REAL_PROGRESS_DAMPING = 1.2;
@@ -18,6 +19,8 @@ const REAL_MAX_PROGRESS_PER_SECOND = 0.055;
 const REAL_LAP_SCROLL_PORTION = 0.92;
 const DEFAULT_ENVIRONMENT_MODE = 'night';
 const ENVIRONMENT_MODES = new Set(['day', 'night']);
+const DEFAULT_WEATHER_MODE = 'clear';
+const WEATHER_MODES = new Set(['clear', 'rain', 'snow']);
 
 const canvas = document.querySelector('#race-canvas');
 const segmentName = document.querySelector('#segment-name');
@@ -29,12 +32,15 @@ const trackVersionDetail = document.querySelector('#track-version-detail');
 const trackNameElement = document.querySelector('#track-name');
 const trackCredit = document.querySelector('#track-credit');
 const environmentButtons = document.querySelectorAll('[data-environment-mode]');
+const weatherButtons = document.querySelectorAll('[data-weather-mode]');
+const windButton = document.querySelector('[data-wind-toggle]');
 
 let renderer;
 let scene;
 let camera;
 let lighting;
 let terrain;
+let weather;
 let trackCurve = null;
 let getSurfaceY = getRealSurfaceY;
 let car;
@@ -46,6 +52,8 @@ let sparks = [];
 let progress = 0;
 let easedProgress = 0;
 let environmentMode = getInitialEnvironmentMode();
+let weatherMode = getInitialWeatherMode();
+let windEnabled = getInitialWindEnabled();
 let viewport = { width: window.innerWidth, height: window.innerHeight };
 let lastFrameTime = performance.now();
 const cameraLookTarget = new THREE.Vector3();
@@ -61,8 +69,11 @@ init();
 async function init() {
   document.body.dataset.trackVersion = ACTIVE_TRACK_VERSION;
   document.body.dataset.environment = environmentMode;
+  document.body.dataset.weather = weatherMode;
+  document.body.dataset.wind = String(windEnabled);
   updateTrackVersionStatus('loading');
   updateEnvironmentControls();
+  updateWeatherControls();
 
   renderer = new THREE.WebGLRenderer({
     canvas,
@@ -85,6 +96,7 @@ async function init() {
 
   lighting = addLighting(scene);
   terrain = addTerrain(scene);
+  weather = createWeatherSystem({ scene });
   applyEnvironmentMode(environmentMode);
   scene.add(createGroundGrid());
 
@@ -126,6 +138,14 @@ async function init() {
       setEnvironmentMode(button.dataset.environmentMode);
     });
   });
+  weatherButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setWeatherMode(button.dataset.weatherMode);
+    });
+  });
+  windButton?.addEventListener('click', () => {
+    setWindEnabled(!windEnabled);
+  });
 
   requestAnimationFrame(animate);
 }
@@ -133,6 +153,15 @@ async function init() {
 function getInitialEnvironmentMode() {
   const savedMode = window.localStorage?.getItem('asseto-environment-mode');
   return ENVIRONMENT_MODES.has(savedMode) ? savedMode : DEFAULT_ENVIRONMENT_MODE;
+}
+
+function getInitialWeatherMode() {
+  const savedMode = window.localStorage?.getItem('asseto-weather-mode');
+  return WEATHER_MODES.has(savedMode) ? savedMode : DEFAULT_WEATHER_MODE;
+}
+
+function getInitialWindEnabled() {
+  return window.localStorage?.getItem('asseto-wind-enabled') === 'true';
 }
 
 function setEnvironmentMode(mode) {
@@ -144,6 +173,24 @@ function setEnvironmentMode(mode) {
   window.localStorage?.setItem('asseto-environment-mode', environmentMode);
   applyEnvironmentMode(environmentMode);
   updateEnvironmentControls();
+}
+
+function setWeatherMode(mode) {
+  if (!WEATHER_MODES.has(mode) || mode === weatherMode) {
+    return;
+  }
+
+  weatherMode = mode;
+  window.localStorage?.setItem('asseto-weather-mode', weatherMode);
+  document.body.dataset.weather = weatherMode;
+  updateWeatherControls();
+}
+
+function setWindEnabled(value) {
+  windEnabled = Boolean(value);
+  window.localStorage?.setItem('asseto-wind-enabled', String(windEnabled));
+  document.body.dataset.wind = String(windEnabled);
+  updateWeatherControls();
 }
 
 function applyEnvironmentMode(mode) {
@@ -162,7 +209,13 @@ function updateEnvironmentControls() {
   });
 }
 
-// TODO: Add weather preset controls here once the visual targets are defined.
+function updateWeatherControls() {
+  weatherButtons.forEach((button) => {
+    const isActive = button.dataset.weatherMode === weatherMode;
+    button.setAttribute('aria-pressed', String(isActive));
+  });
+  windButton?.setAttribute('aria-pressed', String(windEnabled));
+}
 
 function updateTrackIdentity(config) {
   if (trackNameElement) {
@@ -240,12 +293,14 @@ function animate() {
       smoothHeading: true,
       headingDamping: 10,
     });
+    updateStreetLightDynamicLights(lighting.streetLights, car.position);
     updateCamera(easedProgress, delta);
     updateHud(easedProgress);
   }
 
   updateSceneDetails({ curbs, tireStacks, raycaster, pointer, camera, delta });
   updateExhaustSmoke(smokeState, delta);
+  updateWeatherSystem({ weather, mode: weatherMode, windEnabled, delta, camera });
   updateDebugState();
 
   renderer.render(scene, camera);
@@ -294,8 +349,21 @@ function updateDebugState() {
           visible: lighting.streetLights.group.visible,
           glows: lighting.streetLights.glowSprites.length,
           pools: lighting.streetLights.lightPools.length,
+          sources: lighting.streetLights.dynamicSources.length,
           pointLights: lighting.streetLights.pointLights.length,
           spotLights: lighting.streetLights.spotLights.length,
+          activePointLights: lighting.streetLights.pointLights.filter((light) => light.visible).length,
+          activeSpotLights: lighting.streetLights.spotLights.filter((light) => light.visible).length,
+        }
+      : null,
+    weather: weather
+      ? {
+          mode: weatherMode,
+          wind: windEnabled,
+          rainVisible: weather.rain.lines.visible,
+          snowVisible: weather.snow.points.visible,
+          lightning: Number(weather.lightning.flashLight.intensity.toFixed(2)),
+          lightningStrikes: weather.lightning.strikeCount,
         }
       : null,
   };

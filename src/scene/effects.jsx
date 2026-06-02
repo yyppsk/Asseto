@@ -1,10 +1,9 @@
 import * as THREE from 'three';
 import { CHICANE_START, SMOKE_PARTICLE_COUNT, TRACK_HEIGHT } from './constants.js';
-import { getSpaElevation } from './track.jsx';
 import { smoothPulse } from './trackFrame.js';
 
-function getProceduralSurfaceY(t) {
-  return TRACK_HEIGHT + getSpaElevation(t);
+function getDefaultSurfaceY(_t, point) {
+  return point?.y ?? TRACK_HEIGHT;
 }
 
 export function createTrackDetails({
@@ -12,7 +11,7 @@ export function createTrackDetails({
   trackCurve,
   tireStacks,
   sparks,
-  getSurfaceY = getProceduralSurfaceY,
+  getSurfaceY = getDefaultSurfaceY,
   includeTrackside = true,
 }) {
   const stackGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.42, 16);

@@ -1,9 +1,7 @@
 import './styles.css';
 import * as THREE from 'three';
-import { loadSpaTrack, makeTrackCurve } from './trackData.js';
-import { CONTACT_START, SOCIAL_START, TRACK_HEIGHT } from './scene/constants.js';
+import { CONTACT_START, SOCIAL_START } from './scene/constants.js';
 import { loadRaceCarModel, updateCompanionCars, updateRaceCar } from './scene/cars.jsx';
-import { createCircuitEnvironment } from './scene/environment.jsx';
 import {
   createExhaustSmoke,
   createTrackDetails,
@@ -11,9 +9,13 @@ import {
   updateSceneDetails,
 } from './scene/effects.jsx';
 import { createGroundGrid, getGridCellFromPosition } from './scene/groundGrid.jsx';
-import { getRealTrackConfig, loadRealTrackModel } from './scene/realTrack.jsx';
-import { buildTrack, getSpaElevation } from './scene/track.jsx';
-import { addBackdrop, addLighting, addTerrain } from './scene/world.jsx';
+import { loadRealTrackModel } from './scene/realTrack.jsx';
+import { addLighting, addTerrain } from './scene/world.jsx';
+
+const ACTIVE_TRACK_VERSION = 'real-model';
+const REAL_PROGRESS_DAMPING = 1.2;
+const REAL_MAX_PROGRESS_PER_SECOND = 0.055;
+const REAL_LAP_SCROLL_PORTION = 0.92;
 
 const canvas = document.querySelector('#race-canvas');
 const segmentName = document.querySelector('#segment-name');
@@ -24,29 +26,18 @@ const trackVersionLabel = document.querySelector('#track-version-label');
 const trackVersionDetail = document.querySelector('#track-version-detail');
 const trackNameElement = document.querySelector('#track-name');
 const trackCredit = document.querySelector('#track-credit');
-const versionOneLink = document.querySelector('#version-one-link');
-const versionTwoLink = document.querySelector('#version-two-link');
-const versionThreeLink = document.querySelector('#version-three-link');
-
-const trackVersion = getTrackVersion();
-const isRealVersion = trackVersion !== 'procedural';
-const REAL_PROGRESS_DAMPING = 1.2;
-const REAL_MAX_PROGRESS_PER_SECOND = 0.055;
-const PROCEDURAL_PROGRESS_DAMPING = 7.5;
-const REAL_LAP_SCROLL_PORTION = 0.92;
 
 let renderer;
 let scene;
 let camera;
-let trackCurve;
-let getSurfaceY = getProceduralSurfaceY;
+let trackCurve = null;
+let getSurfaceY = getRealSurfaceY;
 let car;
 let smokeState;
 let companionCars = [];
 let curbs = [];
 let tireStacks = [];
 let sparks = [];
-let trackSource = 'fallback';
 let progress = 0;
 let easedProgress = 0;
 let viewport = { width: window.innerWidth, height: window.innerHeight };
@@ -62,8 +53,7 @@ const pointerGroundPoint = new THREE.Vector3();
 init();
 
 async function init() {
-  document.body.dataset.trackVersion = trackVersion;
-  updateVersionNav();
+  document.body.dataset.trackVersion = ACTIVE_TRACK_VERSION;
   updateTrackVersionStatus('loading');
 
   renderer = new THREE.WebGLRenderer({
@@ -88,44 +78,16 @@ async function init() {
   addLighting(scene);
   addTerrain(scene);
   scene.add(createGroundGrid());
-  if (!isRealVersion) {
-    addBackdrop(scene);
-  }
 
-  const track = await loadSpaTrack();
-  trackSource = track.source;
-  trackCurve = makeTrackCurve(track.drivePoints);
-  const { trackGroup } = buildTrack({
-    scene,
-    track,
-    trackCurve,
-    curbs,
-    variant: 'procedural',
-  });
+  const realTrack = await loadRealTrackModel({ scene, version: ACTIVE_TRACK_VERSION });
+  updateTrackIdentity(realTrack.config);
 
-  if (isRealVersion) {
-    const realTrack = await loadRealTrackModel({ scene, version: trackVersion });
-    if (realTrack.loaded && realTrack.driveCurve) {
-      trackCurve = realTrack.driveCurve;
-      getSurfaceY = realTrack.getSurfaceY ?? getRealSurfaceY;
-      trackSource = trackVersion;
-      trackGroup.visible = false;
-      updateTrackIdentity(realTrack.config);
-      updateTrackVersionStatus('real-loaded', realTrack);
-    } else {
-      trackGroup.visible = true;
-      updateTrackVersionStatus('real-missing', realTrack);
-    }
+  if (realTrack.loaded && realTrack.driveCurve) {
+    trackCurve = realTrack.driveCurve;
+    getSurfaceY = realTrack.getSurfaceY ?? getRealSurfaceY;
+    updateTrackVersionStatus('real-loaded', realTrack);
   } else {
-    updateTrackIdentity({
-      displayName: 'Spa-Francorchamps',
-      credit: 'Track geometry from TUMFTM racetrack-database, LGPL-3.0.',
-    });
-    updateTrackVersionStatus('procedural');
-  }
-
-  if (!isRealVersion) {
-    createCircuitEnvironment({ scene, trackCurve, getSurfaceY });
+    updateTrackVersionStatus('real-missing', realTrack);
   }
 
   car = new THREE.Group();
@@ -133,7 +95,14 @@ async function init() {
   scene.add(car);
   loadRaceCarModel({ car, scene, companionCars });
 
-  createTrackDetails({ scene, trackCurve, tireStacks, sparks, getSurfaceY, includeTrackside: !isRealVersion });
+  createTrackDetails({
+    scene,
+    trackCurve,
+    tireStacks,
+    sparks,
+    getSurfaceY,
+    includeTrackside: false,
+  });
   smokeState = createExhaustSmoke({ scene });
   updateScrollState();
   updatePanels(progress);
@@ -143,34 +112,6 @@ async function init() {
   window.addEventListener('pointermove', handlePointerMove, { passive: true });
 
   requestAnimationFrame(animate);
-}
-
-function getTrackVersion() {
-  const params = new URLSearchParams(window.location.search);
-  const requested = params.get('version') ?? params.get('track');
-  const path = window.location.pathname.toLowerCase();
-
-  if (
-    requested === '3' ||
-    requested === 'real2' ||
-    requested === 'nurburgring' ||
-    path.includes('version-3') ||
-    path.includes('real-track-2')
-  ) {
-    return 'real-model-2';
-  }
-
-  if (requested === '2' || requested === 'real' || path.includes('version-2') || path.includes('real-track')) {
-    return 'real-model';
-  }
-
-  return 'procedural';
-}
-
-function updateVersionNav() {
-  versionOneLink?.setAttribute('aria-current', trackVersion === 'procedural' ? 'page' : 'false');
-  versionTwoLink?.setAttribute('aria-current', trackVersion === 'real-model' ? 'page' : 'false');
-  versionThreeLink?.setAttribute('aria-current', trackVersion === 'real-model-2' ? 'page' : 'false');
 }
 
 function updateTrackIdentity(config) {
@@ -188,28 +129,19 @@ function updateTrackVersionStatus(state, realTrack = null) {
     return;
   }
 
-  if (state === 'procedural') {
-    trackVersionLabel.textContent = 'Version 1';
-    trackVersionDetail.textContent = 'Enhanced procedural asphalt, elevation, banking, curbs, and tire marks';
-    return;
-  }
+  trackVersionLabel.textContent = 'Version 2';
 
   if (state === 'real-loaded') {
-    const config = realTrack?.config ?? getRealTrackConfig(trackVersion);
-    trackVersionLabel.textContent = config.versionLabel;
-    trackVersionDetail.textContent = `${config.displayName} loaded; cars follow ${realTrack.routeMethod} (${realTrack.routePointCount} points)`;
+    trackVersionDetail.textContent = `${realTrack.config.displayName} loaded; cars follow ${realTrack.routeMethod} (${realTrack.routePointCount} points)`;
     return;
   }
 
   if (state === 'real-missing') {
-    const config = realTrack?.config ?? getRealTrackConfig(trackVersion);
-    trackVersionLabel.textContent = config.versionLabel;
-    trackVersionDetail.textContent = 'Waiting for the real track GLB. See real-track-model-notes.md';
+    trackVersionDetail.textContent = 'Waiting for the real track GLB.';
     return;
   }
 
-  trackVersionLabel.textContent = isRealVersion ? getRealTrackConfig(trackVersion).versionLabel : 'Version 1';
-  trackVersionDetail.textContent = 'Loading track variation';
+  trackVersionDetail.textContent = 'Loading real track variation';
 }
 
 function animate() {
@@ -219,46 +151,51 @@ function animate() {
   const dampedProgress = THREE.MathUtils.damp(
     easedProgress,
     progress,
-    isRealVersion ? REAL_PROGRESS_DAMPING : PROCEDURAL_PROGRESS_DAMPING,
+    REAL_PROGRESS_DAMPING,
     delta,
   );
-  easedProgress = isRealVersion
-    ? moveProgressToward(easedProgress, dampedProgress, REAL_MAX_PROGRESS_PER_SECOND * delta)
-    : dampedProgress;
-
-  updateRaceCar({
-    trackCurve,
-    car,
-    t: easedProgress,
-    delta,
-    progress,
+  easedProgress = moveProgressToward(
     easedProgress,
-    sparks,
-    camera,
-    smokeState,
-    getSurfaceY,
-    rideHeight: isRealVersion ? 0.02 : undefined,
-    lockToSurface: isRealVersion,
-    smoothHeading: isRealVersion,
-    headingDamping: 12,
-  });
-  updateCompanionCars({
-    trackCurve,
-    companionCars,
-    t: easedProgress,
-    delta,
-    getSurfaceY,
-    spacingScale: isRealVersion ? 0.55 : 1,
-    rideHeight: isRealVersion ? 0.02 : undefined,
-    lockToSurface: isRealVersion,
-    laneScale: isRealVersion ? 0.2 : 1,
-    smoothHeading: isRealVersion,
-    headingDamping: 10,
-  });
-  updateCamera(easedProgress, delta);
+    dampedProgress,
+    REAL_MAX_PROGRESS_PER_SECOND * delta,
+  );
+
+  if (trackCurve) {
+    updateRaceCar({
+      trackCurve,
+      car,
+      t: easedProgress,
+      delta,
+      progress,
+      easedProgress,
+      sparks,
+      camera,
+      smokeState,
+      getSurfaceY,
+      rideHeight: 0.02,
+      lockToSurface: true,
+      smoothHeading: true,
+      headingDamping: 12,
+    });
+    updateCompanionCars({
+      trackCurve,
+      companionCars,
+      t: easedProgress,
+      delta,
+      getSurfaceY,
+      spacingScale: 0.55,
+      rideHeight: 0.02,
+      lockToSurface: true,
+      laneScale: 0.2,
+      smoothHeading: true,
+      headingDamping: 10,
+    });
+    updateCamera(easedProgress, delta);
+    updateHud(easedProgress);
+  }
+
   updateSceneDetails({ curbs, tireStacks, raycaster, pointer, camera, delta });
   updateExhaustSmoke(smokeState, delta);
-  updateHud(easedProgress);
   updateDebugState();
 
   renderer.render(scene, camera);
@@ -321,25 +258,21 @@ function updateCamera(t, delta) {
     .add(cinematicOffset)
     .add(new THREE.Vector3(0, height, 0));
 
-  camera.position.lerp(targetPosition, 1 - Math.exp(-delta * (isRealVersion ? 3 : 3.6)));
+  camera.position.lerp(targetPosition, 1 - Math.exp(-delta * 3));
 
-  const lookAhead = point.clone().add(tangent.multiplyScalar(isRealVersion ? 4.2 : 2.6));
-  lookAhead.y = point.y + (isRealVersion ? 0.72 : 0.9);
+  const lookAhead = point.clone().add(tangent.multiplyScalar(4.2));
+  lookAhead.y = point.y + 0.72;
   if (!hasCameraLookTarget) {
     cameraLookTarget.copy(lookAhead);
     hasCameraLookTarget = true;
   } else {
-    cameraLookTarget.lerp(lookAhead, 1 - Math.exp(-delta * (isRealVersion ? 4.8 : 7.5)));
+    cameraLookTarget.lerp(lookAhead, 1 - Math.exp(-delta * 4.8));
   }
   camera.lookAt(cameraLookTarget);
 }
 
-function getProceduralSurfaceY(t) {
-  return TRACK_HEIGHT + getSpaElevation(t % 1);
-}
-
 function getRealSurfaceY(_t, point) {
-  return point.y;
+  return point?.y ?? 0;
 }
 
 function updateHud(t) {
@@ -352,25 +285,15 @@ function updateHud(t) {
 }
 
 function getSegmentName(t) {
-  if (isRealVersion) {
-    if (t >= CONTACT_START) return 'Route Exit';
-    if (t >= SOCIAL_START) return 'Social Sector';
-    if (t >= 0.35) return 'Model Sector';
-    return 'Start Grid';
-  }
-
-  if (t >= CONTACT_START) return 'Chicane Exit';
-  if (t >= SOCIAL_START) return 'First Chicane';
-  if (t >= 0.55) return 'Blanchimont';
-  if (t >= 0.35) return 'Les Combes';
-  if (t >= 0.16) return 'Kemmel';
-  if (t >= 0.07) return 'Raidillon';
-  return trackSource === 'fallback' ? 'Spa Loop' : 'La Source';
+  if (t >= CONTACT_START) return 'Route Exit';
+  if (t >= SOCIAL_START) return 'Social Sector';
+  if (t >= 0.35) return 'Model Sector';
+  return 'Start Grid';
 }
 
 function updateScrollState() {
   const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-  const lapScrollDistance = isRealVersion ? maxScroll * REAL_LAP_SCROLL_PORTION : maxScroll;
+  const lapScrollDistance = maxScroll * REAL_LAP_SCROLL_PORTION;
   progress = THREE.MathUtils.clamp(window.scrollY / lapScrollDistance, 0, 0.995);
   updatePanels(progress);
 }

@@ -29,22 +29,29 @@ export const REAL_TRACK_MODELS = {
     routeBacktrackTurnDegrees: 135,
     routeBacktrackSegmentMax: 4.8,
     routeBacktrackPasses: 8,
-    routeLocalNudges: [
-      {
-        center: [6.2, 62.4],
-        radius: 7.5,
-        offset: [-4.8, 0],
-      },
-    ],
     minRoutePoints: 32,
+  },
+  "real-model-2": {
+    versionLabel: "Version 3",
+    displayName: "Nurburgring Test GLB",
+    credit: "Nurburgring test model loaded from local GLB package.",
+    path: "/models/real%20track%202/nurburgring_race_driver_grid_ds.glb",
+    fitSize: 106,
+    groundInset: 0.025,
+    driveStrategy: "mesh-nearest",
+    routeMeshPattern: /markers/i,
+    closedRoute: false,
+    routeBins: 192,
+    routeYOffset: -1.0,
+    minRoutePoints: 8,
   },
 };
 
-export function getRealTrackConfig(version = "real-model") {
+export function getRealTrackConfig(version) {
   return REAL_TRACK_MODELS[version] ?? REAL_TRACK_MODELS["real-model"];
 }
 
-export async function loadRealTrackModel({ scene, version = "real-model" }) {
+export async function loadRealTrackModel({ scene, version }) {
   const config = getRealTrackConfig(version);
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath("/draco/");
@@ -160,7 +167,6 @@ function createDriveRoute(model, config) {
     routeMethod = "model bounds fallback";
   }
 
-  points = applyRouteLocalNudges(points, config);
   points = projectRoutePointsToSurface(points, surfaceSampler, config);
   points = removeRouteBacktracks(points, config);
   const driveCurve = createDriveCurve(points, config);
@@ -243,34 +249,6 @@ function projectRoutePointsToSurface(points, surfaceSampler, config) {
   return points.map((point) => {
     const roadY = surfaceSampler.getRoadY(point, point.y);
     return roadY === null ? point : point.clone().setY(roadY + config.routeYOffset);
-  });
-}
-
-function applyRouteLocalNudges(points, config) {
-  const nudges = config.routeLocalNudges ?? [];
-  if (!nudges.length) {
-    return points;
-  }
-
-  return points.map((point) => {
-    const adjusted = point.clone();
-
-    for (const nudge of nudges) {
-      const [centerX, centerZ] = nudge.center;
-      const [offsetX, offsetZ] = nudge.offset;
-      const radius = nudge.radius;
-      const distance = Math.hypot(adjusted.x - centerX, adjusted.z - centerZ);
-
-      if (distance >= radius) {
-        continue;
-      }
-
-      const weight = 1 - THREE.MathUtils.smoothstep(distance / radius, 0, 1);
-      adjusted.x += offsetX * weight;
-      adjusted.z += offsetZ * weight;
-    }
-
-    return adjusted;
   });
 }
 

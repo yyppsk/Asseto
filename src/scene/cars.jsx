@@ -3,11 +3,10 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { CAR_RIDE_HEIGHT, CHICANE_START, COMPANION_CAR_CONFIGS, TRACK_HEIGHT } from './constants.js';
 import { emitExhaustSmoke, updateSparks } from './effects.jsx';
-import { getSpaElevation } from './track.jsx';
 import { smoothPulse } from './trackFrame.js';
 
-function getProceduralSurfaceY(t) {
-  return TRACK_HEIGHT + getSpaElevation(t);
+function getDefaultSurfaceY(_t, point) {
+  return point?.y ?? TRACK_HEIGHT;
 }
 
 export function loadRaceCarModel({ car, scene, companionCars }) {
@@ -44,7 +43,7 @@ export function updateRaceCar({
   sparks,
   camera,
   smokeState,
-  getSurfaceY = getProceduralSurfaceY,
+  getSurfaceY = getDefaultSurfaceY,
   rideHeight = CAR_RIDE_HEIGHT,
   lockToSurface = false,
   smoothHeading = false,
@@ -83,7 +82,7 @@ export function updateCompanionCars({
   companionCars,
   t,
   delta,
-  getSurfaceY = getProceduralSurfaceY,
+  getSurfaceY = getDefaultSurfaceY,
   spacingScale = 1,
   rideHeight = CAR_RIDE_HEIGHT,
   lockToSurface = false,

@@ -1,4 +1,3 @@
-import './styles.css';
 import * as THREE from 'three';
 import { CONTACT_START, SOCIAL_START } from './scene/constants.js';
 import { loadRaceCarModel, setVehicleLightsEnabled, updateCompanionCars, updateRaceCar } from './scene/cars.jsx';
@@ -22,18 +21,21 @@ const ENVIRONMENT_MODES = new Set(['day', 'night']);
 const DEFAULT_WEATHER_MODE = 'clear';
 const WEATHER_MODES = new Set(['clear', 'rain', 'snow']);
 
-const canvas = document.querySelector('#race-canvas');
-const segmentName = document.querySelector('#segment-name');
-const lapProgress = document.querySelector('#lap-progress');
-const gridCell = document.querySelector('#grid-cell');
-const gridPosition = document.querySelector('#grid-position');
-const trackVersionLabel = document.querySelector('#track-version-label');
-const trackVersionDetail = document.querySelector('#track-version-detail');
-const trackNameElement = document.querySelector('#track-name');
-const trackCredit = document.querySelector('#track-credit');
-const environmentButtons = document.querySelectorAll('[data-environment-mode]');
-const weatherButtons = document.querySelectorAll('[data-weather-mode]');
-const windButton = document.querySelector('[data-wind-toggle]');
+let canvas;
+let segmentName;
+let lapProgress;
+let gridCell;
+let gridPosition;
+let trackVersionLabel;
+let trackVersionDetail;
+let trackNameElement;
+let trackCredit;
+let environmentButtons = [];
+let weatherButtons = [];
+let windButton;
+let routeNav;
+let routeProgressValue;
+let routeNavButtons = [];
 
 let renderer;
 let scene;
@@ -64,8 +66,81 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2(-4, -4);
 const pointerGroundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const pointerGroundPoint = new THREE.Vector3();
+let animationFrameId = 0;
+let disposed = false;
+let cleanupCallbacks = [];
+let activeCleanup = null;
 
-init();
+export function initRaceExperience() {
+  activeCleanup?.();
+  bindDomElements();
+  resetRaceState();
+
+  if (!canvas) {
+    return () => {};
+  }
+
+  init();
+
+  activeCleanup = cleanupRaceExperience;
+  return cleanupRaceExperience;
+}
+
+function bindDomElements() {
+  canvas = document.querySelector('#race-canvas');
+  segmentName = document.querySelector('#segment-name');
+  lapProgress = document.querySelector('#lap-progress');
+  gridCell = document.querySelector('#grid-cell');
+  gridPosition = document.querySelector('#grid-position');
+  trackVersionLabel = document.querySelector('#track-version-label');
+  trackVersionDetail = document.querySelector('#track-version-detail');
+  trackNameElement = document.querySelector('#track-name');
+  trackCredit = document.querySelector('#track-credit');
+  environmentButtons = document.querySelectorAll('[data-environment-mode]');
+  weatherButtons = document.querySelectorAll('[data-weather-mode]');
+  windButton = document.querySelector('[data-wind-toggle]');
+  routeNav = document.querySelector('.track-nav');
+  routeProgressValue = document.querySelector('#route-progress-value');
+  routeNavButtons = document.querySelectorAll('[data-route-progress]');
+}
+
+function resetRaceState() {
+  renderer = null;
+  scene = null;
+  camera = null;
+  lighting = null;
+  terrain = null;
+  weather = null;
+  trackCurve = null;
+  getSurfaceY = getRealSurfaceY;
+  car = null;
+  smokeState = null;
+  companionCars = [];
+  curbs = [];
+  tireStacks = [];
+  sparks = [];
+  progress = 0;
+  easedProgress = 0;
+  environmentMode = getInitialEnvironmentMode();
+  weatherMode = getInitialWeatherMode();
+  windEnabled = getInitialWindEnabled();
+  viewport = { width: window.innerWidth, height: window.innerHeight };
+  lastFrameTime = performance.now();
+  vehicleLightState = { enabled: false, main: false, companions: 0, dynamicLights: 0 };
+  hasCameraLookTarget = false;
+  disposed = false;
+  cleanupCallbacks = [];
+}
+
+function cleanupRaceExperience() {
+  disposed = true;
+  cleanupCallbacks.forEach((cleanup) => cleanup());
+  cleanupCallbacks = [];
+  cancelAnimationFrame(animationFrameId);
+  renderer?.dispose();
+  delete window.__assetoDebug;
+  activeCleanup = null;
+}
 
 async function init() {
   document.body.dataset.trackVersion = ACTIVE_TRACK_VERSION;
@@ -102,6 +177,10 @@ async function init() {
   scene.add(createGroundGrid());
 
   const realTrack = await loadRealTrackModel({ scene, version: ACTIVE_TRACK_VERSION });
+  if (disposed) {
+    return;
+  }
+
   updateTrackIdentity(realTrack.config);
 
   if (realTrack.loaded && realTrack.driveCurve) {
@@ -131,24 +210,43 @@ async function init() {
   updateScrollState();
   updatePanels(progress);
 
-  window.addEventListener('resize', handleResize);
-  window.addEventListener('scroll', updateScrollState, { passive: true });
-  window.addEventListener('pointermove', handlePointerMove, { passive: true });
+  addWindowListener('resize', handleResize);
+  addWindowListener('scroll', updateScrollState, { passive: true });
+  addWindowListener('pointermove', handlePointerMove, { passive: true });
   environmentButtons.forEach((button) => {
-    button.addEventListener('click', () => {
+    addElementListener(button, 'click', () => {
       setEnvironmentMode(button.dataset.environmentMode);
     });
   });
   weatherButtons.forEach((button) => {
-    button.addEventListener('click', () => {
+    addElementListener(button, 'click', () => {
       setWeatherMode(button.dataset.weatherMode);
     });
   });
-  windButton?.addEventListener('click', () => {
+  addElementListener(windButton, 'click', () => {
     setWindEnabled(!windEnabled);
   });
+  routeNavButtons.forEach((button) => {
+    addElementListener(button, 'click', () => {
+      scrollToRaceProgress(Number(button.dataset.routeProgress));
+    });
+  });
 
-  requestAnimationFrame(animate);
+  animationFrameId = requestAnimationFrame(animate);
+}
+
+function addWindowListener(type, listener, options) {
+  window.addEventListener(type, listener, options);
+  cleanupCallbacks.push(() => window.removeEventListener(type, listener, options));
+}
+
+function addElementListener(element, type, listener, options) {
+  if (!element) {
+    return;
+  }
+
+  element.addEventListener(type, listener, options);
+  cleanupCallbacks.push(() => element.removeEventListener(type, listener, options));
 }
 
 function getInitialEnvironmentMode() {
@@ -249,6 +347,10 @@ function updateTrackVersionStatus(state, realTrack = null) {
 }
 
 function animate() {
+  if (disposed) {
+    return;
+  }
+
   const now = performance.now();
   const delta = Math.min((now - lastFrameTime) / 1000, 0.04);
   lastFrameTime = now;
@@ -310,7 +412,7 @@ function animate() {
   updateDebugState();
 
   renderer.render(scene, camera);
-  requestAnimationFrame(animate);
+  animationFrameId = requestAnimationFrame(animate);
 }
 
 function moveProgressToward(current, target, maxStep) {
@@ -434,6 +536,36 @@ function updateScrollState() {
 
 function updatePanels(t) {
   document.body.dataset.stage = t >= CONTACT_START ? 'contact' : t >= SOCIAL_START ? 'social' : t >= 0.32 ? 'pace' : 'intro';
+  updateRouteNavigation(t);
+}
+
+function updateRouteNavigation(t) {
+  const activeStage = document.body.dataset.stage;
+  const clampedProgress = THREE.MathUtils.clamp(t, 0, 0.995);
+
+  routeNav?.style.setProperty('--nav-progress-percent', `${(clampedProgress * 100).toFixed(1)}%`);
+  if (routeProgressValue) {
+    routeProgressValue.textContent = `${Math.round(clampedProgress * 100)}%`;
+  }
+
+  routeNavButtons.forEach((button) => {
+    button.setAttribute('aria-current', String(button.dataset.routeStage === activeStage));
+  });
+}
+
+function scrollToRaceProgress(targetProgress) {
+  if (!Number.isFinite(targetProgress)) {
+    return;
+  }
+
+  const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  const lapScrollDistance = maxScroll * REAL_LAP_SCROLL_PORTION;
+  const targetY = THREE.MathUtils.clamp(targetProgress, 0, 0.995) * lapScrollDistance;
+
+  window.scrollTo({
+    top: targetY,
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+  });
 }
 
 function handleResize() {

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="A scroll-driven Spa-Francorchamps racing experience built with Vite and Three.js."
+      content="A scroll-driven Spa-Francorchamps racing experience built with Vite, React, and Three.js."
     />
     <link
       rel="icon"
@@ -14,96 +14,7 @@
     <title>Asseto Spa Track</title>
   </head>
   <body>
-    <div id="app">
-      <canvas id="race-canvas" aria-label="Scroll-driven Spa-Francorchamps race scene"></canvas>
-
-      <aside class="environment-controls" aria-label="Environment controls">
-        <div class="control-row control-row--two">
-          <button type="button" data-environment-mode="day" aria-pressed="false"><span aria-hidden="true">☀</span>Day</button>
-          <button type="button" data-environment-mode="night" aria-pressed="true"><span aria-hidden="true">◐</span>Night</button>
-        </div>
-        <div class="control-row control-row--three">
-          <button type="button" data-weather-mode="clear" aria-pressed="true"><span aria-hidden="true">○</span>Clear</button>
-          <button type="button" data-weather-mode="rain" aria-pressed="false"><span aria-hidden="true">▥</span>Rain</button>
-          <button type="button" data-weather-mode="snow" aria-pressed="false"><span aria-hidden="true">✱</span>Snow</button>
-        </div>
-        <button type="button" class="wind-toggle" data-wind-toggle aria-pressed="false"><span aria-hidden="true">≋</span>Wind</button>
-      </aside>
-
-      <main class="scroll-story" aria-label="Asseto racing story">
-        <section class="story-section story-section--intro" data-panel="intro">
-          <div class="copy-block">
-            <p class="eyebrow">Asseto Racing</p>
-            <h1>Spa Track</h1>
-            <p>Race through the Ardennes, from La Source to the final chicane.</p>
-          </div>
-        </section>
-
-        <section class="story-section" data-panel="pace">
-          <div class="copy-block copy-block--quiet">
-            <p class="eyebrow">Sector Run</p>
-            <h2>Eau Rouge. Raidillon. Kemmel.</h2>
-            <p>The Ferrari locks onto the racing line as the lap opens up.</p>
-          </div>
-        </section>
-
-        <section class="story-section" data-panel="social">
-          <div class="copy-block copy-block--social">
-            <p class="eyebrow">First Chicane</p>
-            <h2>Join The Grid</h2>
-            <ul class="detail-list">
-              <li><span>Discord</span><a href="https://discord.gg/asseto" target="_blank" rel="noreferrer">discord.gg/asseto</a></li>
-              <li><span>Instagram</span><a href="https://instagram.com/asseto.racing" target="_blank" rel="noreferrer">@asseto.racing</a></li>
-              <li><span>YouTube</span><a href="https://youtube.com/@asseto" target="_blank" rel="noreferrer">@asseto</a></li>
-            </ul>
-          </div>
-        </section>
-
-        <section class="story-section story-section--finish" data-panel="contact">
-          <div class="copy-block copy-block--contact">
-            <p class="eyebrow">Chicane Exit</p>
-            <h2>Contact / About Us</h2>
-            <p>Asseto is a motorsport-first community experience for drivers, builders, and race fans.</p>
-            <ul class="detail-list">
-              <li><span>Email</span><a href="mailto:hello@asseto.racing">hello@asseto.racing</a></li>
-              <li><span>Phone</span><a href="tel:+15550149117">+1 555 014 9117</a></li>
-              <li><span>Location</span><strong>Francorchamps inspired, globally online</strong></li>
-            </ul>
-          </div>
-        </section>
-      </main>
-
-      <aside class="race-hud" aria-label="Race status">
-        <div>
-          <span>Track</span>
-          <strong id="track-name">Spa-Francorchamps</strong>
-        </div>
-        <div>
-          <span>Segment</span>
-          <strong id="segment-name">La Source</strong>
-        </div>
-      </aside>
-
-      <aside class="grid-readout" aria-live="polite">
-        <span>Grid</span>
-        <strong id="grid-cell">--</strong>
-        <small id="grid-position">X -- / Z --</small>
-      </aside>
-
-      <aside class="track-version-status" aria-live="polite">
-        <span>Version</span>
-        <strong id="track-version-label">Version 2</strong>
-        <small id="track-version-detail">Loading real track variation</small>
-      </aside>
-
-      <div class="progress-rail" aria-hidden="true">
-        <span id="lap-progress"></span>
-      </div>
-
-      <footer id="track-credit" class="credit">
-        Track geometry from TUMFTM racetrack-database, LGPL-3.0.
-      </footer>
-    </div>
-    <script type="module" src="/src/main.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

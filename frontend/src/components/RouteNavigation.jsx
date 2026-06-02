@@ -16,16 +16,20 @@ export function RouteNavigation() {
       </div>
       <div className="track-nav__road" aria-hidden="true">
         <span className="track-nav__road-progress"></span>
-        <span className="track-nav__runner"></span>
+        <span className="track-nav__runner">
+          <img src="/assets/images/Asseto_cropped_UI_car_small.png" alt="" />
+        </span>
       </div>
       <div className="track-nav__stops">
-        {routeStops.map((stop) => (
+        {routeStops.map((stop, index) => (
           <Button
             key={stop.stage}
             type="button"
             className="track-nav__stop"
+            data-route-index={index}
             data-route-stage={stop.stage}
             data-route-progress={stop.progress}
+            data-route-state={stop.stage === 'intro' ? 'active' : 'upcoming'}
             aria-current={stop.stage === 'intro'}
           >
             <span className="track-nav__marker" aria-hidden="true"></span>

@@ -75,6 +75,7 @@ export function initRaceExperience() {
   activeCleanup?.();
   bindDomElements();
   resetRaceState();
+  setLoadingState(true);
 
   if (!canvas) {
     return () => {};
@@ -139,6 +140,7 @@ function cleanupRaceExperience() {
   cancelAnimationFrame(animationFrameId);
   renderer?.dispose();
   delete window.__assetoDebug;
+  document.body.removeAttribute('data-loading');
   activeCleanup = null;
 }
 
@@ -209,6 +211,7 @@ async function init() {
   smokeState = createExhaustSmoke({ scene });
   updateScrollState();
   updatePanels(progress);
+  setLoadingState(false);
 
   addWindowListener('resize', handleResize);
   addWindowListener('scroll', updateScrollState, { passive: true });
@@ -233,6 +236,10 @@ async function init() {
   });
 
   animationFrameId = requestAnimationFrame(animate);
+}
+
+function setLoadingState(isLoading) {
+  document.body.dataset.loading = String(isLoading);
 }
 
 function addWindowListener(type, listener, options) {
@@ -549,7 +556,12 @@ function updateRouteNavigation(t) {
   }
 
   routeNavButtons.forEach((button) => {
-    button.setAttribute('aria-current', String(button.dataset.routeStage === activeStage));
+    const stopProgress = Number(button.dataset.routeProgress);
+    const isActive = button.dataset.routeStage === activeStage;
+    const isCompleted = Number.isFinite(stopProgress) && stopProgress < clampedProgress && !isActive;
+
+    button.setAttribute('aria-current', String(isActive));
+    button.dataset.routeState = isActive ? 'active' : isCompleted ? 'completed' : 'upcoming';
   });
 }
 

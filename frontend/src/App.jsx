@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { EnvironmentControls } from './components/EnvironmentControls.jsx';
+import { LoadingScreen } from './components/LoadingScreen.jsx';
 import { RaceHud } from './components/RaceHud.jsx';
 import { RouteNavigation } from './components/RouteNavigation.jsx';
 import { StoryPanels } from './components/StoryPanels.jsx';
@@ -15,6 +16,7 @@ export function App() {
       <EnvironmentControls />
       <StoryPanels />
       <RaceHud />
+      <LoadingScreen />
     </div>
   );
 }

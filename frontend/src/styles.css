@@ -47,6 +47,7 @@ a {
 
 .track-nav {
   --nav-progress-percent: 0%;
+  --checkpoint-glow: #54f29a;
   position: fixed;
   top: 50%;
   left: clamp(0.9rem, 2vw, 1.4rem);
@@ -130,33 +131,100 @@ a {
 .track-nav__road-progress {
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
   height: var(--nav-progress-percent);
-  background: linear-gradient(180deg, rgb(255 206 86 / 0.26), rgb(244 61 79 / 0.38));
+  width: 0.32rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgb(96 255 168 / 0.18), rgb(84 242 154 / 0.95));
+  box-shadow:
+    0 0 0.9rem rgb(84 242 154 / 0.48),
+    0 0 1.8rem rgb(84 242 154 / 0.26);
+  transform: translateX(-50%);
 }
 
 .track-nav__runner {
   position: absolute;
   left: 50%;
   top: var(--nav-progress-percent);
-  width: 0.74rem;
-  height: 0.74rem;
-  border: 2px solid #101316;
-  background: #ffce56;
+  width: 2.15rem;
+  height: 1.45rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: radial-gradient(ellipse, rgb(255 206 86 / 0.35) 0 24%, rgb(244 61 79 / 0.2) 34%, transparent 72%);
   box-shadow:
-    0 0 0 2px rgb(255 206 86 / 0.25),
-    0 0 1.1rem rgb(255 206 86 / 0.64);
-  transform: translate(-50%, -50%) rotate(45deg);
+    0 0 1rem rgb(255 206 86 / 0.72),
+    0 0 2.2rem rgb(244 61 79 / 0.36),
+    0 0 3rem rgb(84 242 154 / 0.18);
+  transform: translate(-50%, -50%) rotate(90deg);
+  animation: nav-runner-pulse 1.15s ease-in-out infinite;
+}
+
+.track-nav__runner::before,
+.track-nav__runner::after {
+  position: absolute;
+  inset: -0.24rem -0.4rem;
+  border: 1px solid rgb(255 206 86 / 0.28);
+  border-radius: inherit;
+  content: "";
+  animation: nav-runner-ring 1.15s ease-out infinite;
+}
+
+.track-nav__runner::after {
+  animation-delay: 0.36s;
+}
+
+.track-nav__runner img {
+  position: relative;
+  z-index: 1;
+  width: 2.2rem;
+  max-width: none;
+  height: auto;
+  display: block;
+  transform: rotate(-90deg);
+  filter:
+    drop-shadow(0 0 0.18rem rgb(255 250 240 / 0.56))
+    drop-shadow(0 0 0.55rem rgb(244 61 79 / 0.46));
+  pointer-events: none;
+  user-select: none;
 }
 
 .track-nav__stops {
+  position: relative;
   display: grid;
   align-content: space-between;
   min-height: 13.4rem;
 }
 
+.track-nav__stops::before,
+.track-nav__stops::after {
+  position: absolute;
+  left: 0.79rem;
+  top: 1.26rem;
+  bottom: 1.26rem;
+  width: 2px;
+  border-radius: 999px;
+  content: "";
+  pointer-events: none;
+}
+
+.track-nav__stops::before {
+  background: rgb(244 241 232 / 0.14);
+}
+
+.track-nav__stops::after {
+  height: var(--nav-progress-percent);
+  max-height: calc(100% - 2.52rem);
+  bottom: auto;
+  background: linear-gradient(180deg, rgb(84 242 154 / 0.22), rgb(84 242 154 / 0.95));
+  box-shadow:
+    0 0 0.65rem rgb(84 242 154 / 0.46),
+    0 0 1.5rem rgb(84 242 154 / 0.22);
+}
+
 .track-nav__stop {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: 1rem minmax(0, 1fr);
   align-items: center;
@@ -164,43 +232,130 @@ a {
   min-height: 2.55rem;
   padding: 0.25rem 0.35rem;
   border: 1px solid transparent;
+  border-radius: 0.45rem;
   background: transparent;
   color: #cfd6cc;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  overflow: hidden;
+  transition:
+    border-color 720ms ease,
+    color 720ms ease,
+    filter 900ms ease;
+}
+
+.track-nav__stop::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgb(84 242 154 / 0.18), rgb(255 206 86 / 0.1)),
+    radial-gradient(circle at 1.1rem 50%, rgb(84 242 154 / 0.22), transparent 64%);
+  box-shadow:
+    inset 0 0 0 1px rgb(84 242 154 / 0.08),
+    0 0 1rem rgb(84 242 154 / 0);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 980ms ease,
+    box-shadow 1200ms ease;
 }
 
 .track-nav__stop:hover,
 .track-nav__stop:focus-visible {
   border-color: rgb(255 206 86 / 0.32);
-  background: rgb(255 255 255 / 0.055);
   outline: none;
 }
 
+.track-nav__stop:hover::before,
+.track-nav__stop:focus-visible::before {
+  opacity: 0.34;
+}
+
 .track-nav__stop[aria-current="true"] {
-  border-color: rgb(255 206 86 / 0.48);
-  background: rgb(255 206 86 / 0.12);
+  border-color: rgb(84 242 154 / 0.44);
   color: #fffaf0;
 }
 
+.track-nav__stop[aria-current="true"]::before {
+  box-shadow:
+    inset 0 0 0 1px rgb(84 242 154 / 0.18),
+    0 0 1.45rem rgb(84 242 154 / 0.26),
+    0 0 2rem rgb(255 206 86 / 0.08);
+  opacity: 1;
+}
+
 .track-nav__marker {
-  width: 0.72rem;
-  height: 0.72rem;
-  border: 2px solid rgb(244 241 232 / 0.42);
-  background: #101316;
-  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 0.22);
+  position: relative;
+  z-index: 1;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 1px solid rgb(244 241 232 / 0.38);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, #101316 0 36%, transparent 37%),
+    conic-gradient(from 45deg, rgb(244 241 232 / 0.1), rgb(244 241 232 / 0.45), rgb(244 241 232 / 0.1));
+  box-shadow:
+    0 0 0 2px rgb(0 0 0 / 0.34),
+    inset 0 0 0 2px rgb(0 0 0 / 0.28);
+  filter: brightness(1);
+  transform: scale(1);
+  transition:
+    border-color 900ms ease,
+    box-shadow 1200ms ease,
+    filter 1100ms ease,
+    transform 900ms ease;
+}
+
+.track-nav__marker::before,
+.track-nav__marker::after {
+  position: absolute;
+  inset: 0.22rem;
+  content: "";
+}
+
+.track-nav__marker::before {
+  border-top: 2px solid rgb(244 241 232 / 0.7);
+  border-bottom: 2px solid rgb(244 241 232 / 0.7);
+  transform: rotate(45deg);
+}
+
+.track-nav__marker::after {
+  border-left: 2px solid rgb(244 241 232 / 0.7);
+  border-right: 2px solid rgb(244 241 232 / 0.7);
+  transform: rotate(45deg);
+}
+
+.track-nav__stop[data-route-state="completed"] .track-nav__marker {
+  border-color: rgb(84 242 154 / 0.76);
+  background:
+    radial-gradient(circle, rgb(84 242 154 / 0.95) 0 36%, transparent 37%),
+    conic-gradient(from 45deg, rgb(84 242 154 / 0.22), rgb(84 242 154 / 0.88), rgb(84 242 154 / 0.22));
+  box-shadow:
+    0 0 0 2px rgb(84 242 154 / 0.18),
+    0 0 1rem rgb(84 242 154 / 0.32);
 }
 
 .track-nav__stop[aria-current="true"] .track-nav__marker {
-  border-color: #101316;
-  background: #f43d4f;
+  border-color: #ffce56;
+  background:
+    radial-gradient(circle, #fffaf0 0 24%, #ffce56 25% 42%, transparent 43%),
+    conic-gradient(from 45deg, #54f29a, #ffce56, #f43d4f, #54f29a);
   box-shadow:
-    0 0 0 2px rgb(255 206 86 / 0.7),
-    0 0 1rem rgb(244 61 79 / 0.48);
+    0 0 0 2px rgb(16 19 22 / 0.8),
+    0 0 0.85rem rgb(84 242 154 / 0.72),
+    0 0 1.6rem rgb(255 206 86 / 0.42);
+  filter: brightness(1.16);
+  transform: scale(1.06);
+  animation: checkpoint-arrival-glow 1.45s ease-out;
 }
 
 .track-nav__text {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 0.08rem;
   min-width: 0;
@@ -229,7 +384,170 @@ a {
 }
 
 .track-nav__stop[aria-current="true"] .track-nav__text small {
-  color: #ffce56;
+  color: #54f29a;
+}
+
+@keyframes checkpoint-arrival-glow {
+  0% {
+    box-shadow:
+      0 0 0 2px rgb(16 19 22 / 0.8),
+      0 0 0 rgb(84 242 154 / 0),
+      0 0 0 rgb(255 206 86 / 0);
+    filter: brightness(1);
+    transform: scale(0.9);
+  }
+
+  48% {
+    box-shadow:
+      0 0 0 2px rgb(16 19 22 / 0.8),
+      0 0 1.25rem rgb(84 242 154 / 0.86),
+      0 0 2.2rem rgb(255 206 86 / 0.48);
+    filter: brightness(1.35);
+    transform: scale(1.16);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 2px rgb(16 19 22 / 0.8),
+      0 0 0.85rem rgb(84 242 154 / 0.72),
+      0 0 1.6rem rgb(255 206 86 / 0.42);
+    filter: brightness(1.16);
+    transform: scale(1.06);
+  }
+}
+
+@keyframes nav-runner-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+    box-shadow:
+      0 0 1rem rgb(255 206 86 / 0.72),
+      0 0 2.2rem rgb(244 61 79 / 0.36),
+      0 0 3rem rgb(84 242 154 / 0.18);
+  }
+
+  50% {
+    filter: brightness(1.28);
+    box-shadow:
+      0 0 1.4rem rgb(84 242 154 / 0.74),
+      0 0 2.7rem rgb(255 206 86 / 0.58),
+      0 0 3.6rem rgb(244 61 79 / 0.34);
+  }
+}
+
+@keyframes nav-runner-ring {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.58);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 46%, rgb(255 206 86 / 0.12), transparent 30%),
+    linear-gradient(180deg, rgb(7 9 11 / 0.96), rgb(10 13 16 / 0.9));
+  opacity: 1;
+  transition:
+    opacity 420ms ease,
+    visibility 420ms ease;
+}
+
+body[data-loading="false"] .loading-screen {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-screen__road {
+  position: relative;
+  width: min(28rem, calc(100vw - 2rem));
+  height: 4.2rem;
+  display: grid;
+  align-items: center;
+  border: 1px solid rgb(244 241 232 / 0.18);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 1.1rem,
+      rgb(255 206 86 / 0.84) 1.1rem 1.65rem,
+      transparent 1.65rem 2.8rem
+    )
+    center / 100% 0.16rem no-repeat,
+    linear-gradient(180deg, #181c1f, #060708);
+  box-shadow:
+    0 1rem 4rem rgb(0 0 0 / 0.45),
+    inset 0 0 2rem rgb(255 255 255 / 0.035);
+}
+
+.loading-screen__road::before,
+.loading-screen__road::after {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  height: 1px;
+  content: "";
+  background: rgb(244 241 232 / 0.18);
+}
+
+.loading-screen__road::before {
+  top: 0.72rem;
+}
+
+.loading-screen__road::after {
+  bottom: 0.72rem;
+}
+
+.loading-screen__lane {
+  position: absolute;
+  left: 0.7rem;
+  right: 0.7rem;
+  top: 50%;
+  height: 0.32rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgb(84 242 154 / 0.82), transparent);
+  box-shadow: 0 0 1.4rem rgb(84 242 154 / 0.44);
+  transform: translateY(-50%);
+}
+
+.loading-screen__car {
+  position: absolute;
+  left: -5.2rem;
+  top: 50%;
+  width: 7rem;
+  height: auto;
+  display: block;
+  filter:
+    drop-shadow(0 0 0.35rem rgb(255 250 240 / 0.5))
+    drop-shadow(0 0 1rem rgb(244 61 79 / 0.46))
+    drop-shadow(0 0 1.8rem rgb(255 206 86 / 0.32));
+  transform: translateY(-50%);
+  user-select: none;
+  animation: loading-car-run 1.65s cubic-bezier(0.55, 0.08, 0.28, 0.98) infinite;
+}
+
+@keyframes loading-car-run {
+  0% {
+    left: -5.2rem;
+  }
+
+  72% {
+    left: calc(100% - 2rem);
+  }
+
+  100% {
+    left: calc(100% + 5.2rem);
+  }
 }
 
 .environment-controls {
@@ -700,8 +1018,12 @@ body[data-environment="day"][data-stage="contact"]::before {
   }
 
   .track-nav__runner {
-    width: 0.58rem;
-    height: 0.58rem;
+    width: 1.7rem;
+    height: 1.05rem;
+  }
+
+  .track-nav__runner img {
+    width: 1.75rem;
   }
 
   .track-nav__stop {
@@ -712,8 +1034,14 @@ body[data-environment="day"][data-stage="contact"]::before {
   }
 
   .track-nav__marker {
-    width: 0.64rem;
-    height: 0.64rem;
+    width: 0.72rem;
+    height: 0.72rem;
+  }
+
+  .track-nav__stops::before,
+  .track-nav__stops::after {
+    left: 50%;
+    transform: translateX(-50%);
   }
 
   .track-nav__text {
@@ -723,6 +1051,15 @@ body[data-environment="day"][data-stage="contact"]::before {
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+  }
+
+  .loading-screen__road {
+    width: min(19rem, calc(100vw - 2rem));
+    height: 3.5rem;
+  }
+
+  .loading-screen__car {
+    width: 5.6rem;
   }
 
   .credit {

@@ -146,6 +146,7 @@ a {
   position: absolute;
   left: 50%;
   top: var(--nav-progress-percent);
+  z-index: 4;
   width: 2.15rem;
   height: 1.45rem;
   display: grid;
@@ -176,12 +177,11 @@ a {
 
 .track-nav__runner img {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: 2.2rem;
   max-width: none;
   height: auto;
   display: block;
-  transform: rotate(-90deg);
   filter:
     drop-shadow(0 0 0.18rem rgb(255 250 240 / 0.56))
     drop-shadow(0 0 0.55rem rgb(244 61 79 / 0.46));

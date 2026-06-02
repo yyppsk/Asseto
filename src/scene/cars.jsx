@@ -5,6 +5,8 @@ import { CAR_RIDE_HEIGHT, CHICANE_START, COMPANION_CAR_CONFIGS, TRACK_HEIGHT } f
 import { emitExhaustSmoke, updateSparks } from './effects.jsx';
 import { smoothPulse } from './trackFrame.js';
 
+let vehicleLightAssets = null;
+
 function getDefaultSurfaceY(_t, point) {
   return point?.y ?? TRACK_HEIGHT;
 }
@@ -24,6 +26,7 @@ export function loadRaceCarModel({ car, scene, companionCars }) {
       model.rotation.y = Math.PI;
       model.name = 'ferrari-glb';
       car.add(model);
+      addVehicleLightRig(car, { dynamicLight: true });
       createCompanionCars({ scene, companionCars, sourceModel: model });
     },
     undefined,
@@ -128,6 +131,24 @@ export function updateCompanionCars({
   });
 }
 
+export function setVehicleLightsEnabled({ car, companionCars, enabled }) {
+  const state = {
+    enabled,
+    main: setCarLightRigEnabled(car, enabled),
+    companions: 0,
+    dynamicLights: 0,
+  };
+
+  companionCars.forEach(({ group }) => {
+    if (setCarLightRigEnabled(group, enabled)) {
+      state.companions += 1;
+    }
+  });
+
+  state.dynamicLights = getActiveVehicleLightCount(car, companionCars);
+  return state;
+}
+
 function setHeading(object, targetYaw, { smoothHeading, headingDamping, delta }) {
   if (!smoothHeading || !object.userData.hasHeading) {
     object.rotation.y = targetYaw;
@@ -172,6 +193,7 @@ function createCompanionCars({ scene, companionCars, sourceModel }) {
     tintCompanionCar(model, config);
     group.add(model);
     addCompanionCarKit(group, config);
+    addVehicleLightRig(group);
 
     companionCars.push({ group, config });
     scene.add(group);
@@ -275,4 +297,249 @@ function fitRaceCarModel(model) {
   model.position.x -= fittedCenter.x;
   model.position.z -= fittedCenter.z;
   model.position.y -= fittedBox.min.y;
+}
+
+function addVehicleLightRig(group, { dynamicLight = false } = {}) {
+  if (group.userData.vehicleLights) {
+    return group.userData.vehicleLights;
+  }
+
+  const assets = getVehicleLightAssets();
+  const root = new THREE.Group();
+  root.name = 'vehicle-night-lights';
+  root.visible = false;
+
+  for (const x of [-0.58, 0.58]) {
+    const frontGlow = new THREE.Sprite(assets.frontGlowMaterial);
+    frontGlow.name = 'headlight-glow';
+    frontGlow.position.set(x, 0.58, 2.24);
+    frontGlow.scale.set(0.52, 0.3, 1);
+    root.add(frontGlow);
+
+    const beam = new THREE.Mesh(assets.beamGeometry, assets.beamMaterial);
+    beam.name = 'headlight-beam';
+    beam.position.set(x, 0.075, 2.22);
+    beam.rotation.x = Math.PI / 2;
+    beam.renderOrder = 8;
+    root.add(beam);
+
+    const rearGlow = new THREE.Sprite(assets.rearGlowMaterial);
+    rearGlow.name = 'taillight-glow';
+    rearGlow.position.set(x, 0.9, -2.22);
+    rearGlow.scale.set(0.76, 0.42, 1);
+    root.add(rearGlow);
+
+    const rearLamp = new THREE.Mesh(assets.rearLampGeometry, assets.rearLampMaterial);
+    rearLamp.name = 'taillight-bright-core';
+    rearLamp.position.set(x, 0.9, -2.31);
+    rearLamp.rotation.y = Math.PI;
+    rearLamp.renderOrder = 10;
+    root.add(rearLamp);
+  }
+
+  const dynamicLights = [];
+
+  if (dynamicLight) {
+    const target = new THREE.Object3D();
+    target.name = 'headlight-target';
+    target.position.set(0, 0.12, 12);
+    root.add(target);
+
+    const headlight = new THREE.SpotLight(0xfff1c2, 0, 18, Math.PI / 7.5, 0.7, 1.65);
+    headlight.name = 'lead-car-headlight';
+    headlight.position.set(0, 0.78, 2);
+    headlight.castShadow = false;
+    headlight.target = target;
+    root.add(headlight);
+    dynamicLights.push({ light: headlight, intensity: 1.85 });
+
+    const tailLight = new THREE.PointLight(0xff2436, 0, 3.4, 2);
+    tailLight.name = 'lead-car-taillight';
+    tailLight.position.set(0, 0.58, -2.16);
+    tailLight.castShadow = false;
+    root.add(tailLight);
+    dynamicLights.push({ light: tailLight, intensity: 0.85 });
+  }
+
+  group.add(root);
+  group.userData.vehicleLights = { root, dynamicLights, enabled: false };
+  return group.userData.vehicleLights;
+}
+
+function setCarLightRigEnabled(group, enabled) {
+  const rig = group?.userData?.vehicleLights;
+  if (!rig) {
+    return false;
+  }
+
+  if (rig.enabled !== enabled) {
+    rig.root.visible = enabled;
+    rig.dynamicLights.forEach(({ light, intensity }) => {
+      light.intensity = enabled ? intensity : 0;
+      light.visible = enabled;
+    });
+    rig.enabled = enabled;
+  }
+
+  return rig.root.visible;
+}
+
+function getActiveVehicleLightCount(car, companionCars) {
+  const groups = [car, ...companionCars.map(({ group }) => group)];
+  return groups.reduce((count, group) => {
+    const rig = group?.userData?.vehicleLights;
+    if (!rig?.enabled) {
+      return count;
+    }
+
+    return count + rig.dynamicLights.filter(({ light }) => light.visible && light.intensity > 0).length;
+  }, 0);
+}
+
+function getVehicleLightAssets() {
+  if (vehicleLightAssets) {
+    return vehicleLightAssets;
+  }
+
+  const frontGlowTexture = createRadialGlowTexture({
+    inner: 'rgba(255, 244, 199, 0.95)',
+    mid: 'rgba(255, 213, 120, 0.42)',
+    outer: 'rgba(255, 198, 82, 0)',
+  });
+  const rearGlowTexture = createRadialGlowTexture({
+    inner: 'rgba(255, 42, 58, 0.95)',
+    mid: 'rgba(255, 16, 38, 0.5)',
+    outer: 'rgba(255, 0, 22, 0)',
+  });
+  const beamTexture = createHeadlightBeamTexture();
+
+  vehicleLightAssets = {
+    frontGlowMaterial: new THREE.SpriteMaterial({
+      map: frontGlowTexture,
+      color: 0xfff0bd,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
+    rearGlowMaterial: new THREE.SpriteMaterial({
+      map: rearGlowTexture,
+      color: 0xff2436,
+      transparent: true,
+      opacity: 1,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
+    rearLampGeometry: new THREE.PlaneGeometry(0.46, 0.16),
+    rearLampMaterial: new THREE.MeshBasicMaterial({
+      color: 0xff0718,
+      transparent: true,
+      opacity: 1,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+    beamGeometry: createHeadlightBeamGeometry(),
+    beamMaterial: new THREE.MeshBasicMaterial({
+      map: beamTexture,
+      color: 0xffefbf,
+      transparent: true,
+      opacity: 0.78,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  };
+
+  return vehicleLightAssets;
+}
+
+function createRadialGlowTexture({ inner, mid, outer }) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+
+  const context = canvas.getContext('2d');
+  const gradient = context.createRadialGradient(64, 64, 6, 64, 64, 64);
+  gradient.addColorStop(0, inner);
+  gradient.addColorStop(0.38, mid);
+  gradient.addColorStop(1, outer);
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function createHeadlightBeamTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 512;
+
+  const context = canvas.getContext('2d');
+  const gradient = context.createLinearGradient(0, canvas.height, 0, 0);
+  gradient.addColorStop(0, 'rgba(255, 248, 210, 0.38)');
+  gradient.addColorStop(0.22, 'rgba(255, 232, 161, 0.24)');
+  gradient.addColorStop(0.64, 'rgba(255, 216, 120, 0.09)');
+  gradient.addColorStop(1, 'rgba(255, 210, 96, 0)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const sideFade = context.createLinearGradient(0, 0, canvas.width, 0);
+  sideFade.addColorStop(0, 'rgba(255, 255, 255, 0)');
+  sideFade.addColorStop(0.28, 'rgba(255, 255, 255, 0.44)');
+  sideFade.addColorStop(0.5, 'rgba(255, 255, 255, 0.86)');
+  sideFade.addColorStop(0.72, 'rgba(255, 255, 255, 0.44)');
+  sideFade.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  context.globalCompositeOperation = 'destination-in';
+  context.fillStyle = sideFade;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.globalCompositeOperation = 'source-over';
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function createHeadlightBeamGeometry() {
+  const baseWidth = 0.56;
+  const farWidth = 2.45;
+  const length = 9.4;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(
+      new Float32Array([
+        -baseWidth / 2,
+        0,
+        0,
+        baseWidth / 2,
+        0,
+        0,
+        -farWidth / 2,
+        length,
+        0,
+        -farWidth / 2,
+        length,
+        0,
+        baseWidth / 2,
+        0,
+        0,
+        farWidth / 2,
+        length,
+        0,
+      ]),
+      3,
+    ),
+  );
+  geometry.setAttribute(
+    'uv',
+    new THREE.BufferAttribute(
+      new Float32Array([0.38, 0, 0.62, 0, 0, 1, 0, 1, 0.62, 0, 1, 1]),
+      2,
+    ),
+  );
+  geometry.computeVertexNormals();
+  return geometry;
 }

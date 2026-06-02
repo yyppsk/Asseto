@@ -1,7 +1,7 @@
 import './styles.css';
 import * as THREE from 'three';
 import { CONTACT_START, SOCIAL_START } from './scene/constants.js';
-import { loadRaceCarModel, updateCompanionCars, updateRaceCar } from './scene/cars.jsx';
+import { loadRaceCarModel, setVehicleLightsEnabled, updateCompanionCars, updateRaceCar } from './scene/cars.jsx';
 import {
   createExhaustSmoke,
   createTrackDetails,
@@ -56,6 +56,7 @@ let weatherMode = getInitialWeatherMode();
 let windEnabled = getInitialWindEnabled();
 let viewport = { width: window.innerWidth, height: window.innerHeight };
 let lastFrameTime = performance.now();
+let vehicleLightState = { enabled: false, main: false, companions: 0, dynamicLights: 0 };
 const cameraLookTarget = new THREE.Vector3();
 let hasCameraLookTarget = false;
 
@@ -294,6 +295,11 @@ function animate() {
       headingDamping: 10,
     });
     updateStreetLightDynamicLights(lighting.streetLights, car.position);
+    vehicleLightState = setVehicleLightsEnabled({
+      car,
+      companionCars,
+      enabled: environmentMode === 'night',
+    });
     updateCamera(easedProgress, delta);
     updateHud(easedProgress);
   }
@@ -366,6 +372,7 @@ function updateDebugState() {
           lightningStrikes: weather.lightning.strikeCount,
         }
       : null,
+    vehicleLights: vehicleLightState,
   };
 }
 

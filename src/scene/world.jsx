@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 
 export function addLighting(scene) {
-  scene.add(new THREE.HemisphereLight(0xbcd7ff, 0x142013, 1.65));
+  const hemisphere = new THREE.HemisphereLight(0xbcd7ff, 0x142013, 1.65);
+  scene.add(hemisphere);
 
   const sun = new THREE.DirectionalLight(0xffe5c2, 3.5);
   sun.position.set(-28, 48, 22);
@@ -18,6 +19,8 @@ export function addLighting(scene) {
   const trackGlow = new THREE.PointLight(0xff365e, 45, 52, 2.2);
   trackGlow.position.set(-11, 8, 22);
   scene.add(trackGlow);
+
+  return { hemisphere, sun, trackGlow };
 }
 
 export function addTerrain(scene) {
@@ -54,6 +57,65 @@ export function addTerrain(scene) {
   grid.material.opacity = 0.12;
   grid.material.transparent = true;
   scene.add(grid);
+
+  return { ground, grid };
+}
+
+export const ENVIRONMENT_PRESETS = {
+  day: {
+    clear: 0x9fc5dd,
+    fog: 0xb4d1e3,
+    fogDensity: 0.0075,
+    hemisphereSky: 0xd8f0ff,
+    hemisphereGround: 0x5f6f58,
+    hemisphereIntensity: 2.15,
+    sunColor: 0xfff1d2,
+    sunIntensity: 4.25,
+    trackGlowIntensity: 8,
+    ground: 0x405643,
+    gridMajor: 0x7f9a83,
+    gridMinor: 0x526553,
+  },
+  night: {
+    clear: 0x0b0f13,
+    fog: 0x0b0f13,
+    fogDensity: 0.018,
+    hemisphereSky: 0xbcd7ff,
+    hemisphereGround: 0x142013,
+    hemisphereIntensity: 1.65,
+    sunColor: 0xffe5c2,
+    sunIntensity: 3.5,
+    trackGlowIntensity: 45,
+    ground: 0x23332a,
+    gridMajor: 0x3f5346,
+    gridMinor: 0x2e3a33,
+  },
+};
+
+export function applyEnvironmentPreset({ mode, scene, renderer, lighting, terrain }) {
+  const preset = ENVIRONMENT_PRESETS[mode] ?? ENVIRONMENT_PRESETS.night;
+
+  renderer.setClearColor(preset.clear, 1);
+  scene.fog = new THREE.FogExp2(preset.fog, preset.fogDensity);
+
+  lighting.hemisphere.color.setHex(preset.hemisphereSky);
+  lighting.hemisphere.groundColor.setHex(preset.hemisphereGround);
+  lighting.hemisphere.intensity = preset.hemisphereIntensity;
+  lighting.sun.color.setHex(preset.sunColor);
+  lighting.sun.intensity = preset.sunIntensity;
+  lighting.trackGlow.intensity = preset.trackGlowIntensity;
+
+  terrain.ground.material.color.setHex(preset.ground);
+  setMaterialColor(terrain.grid.material, [preset.gridMajor, preset.gridMinor]);
+}
+
+function setMaterialColor(material, colors) {
+  const materials = Array.isArray(material) ? material : [material];
+
+  for (const [index, entry] of materials.entries()) {
+    entry.color?.setHex(colors[index] ?? colors[0]);
+    entry.needsUpdate = true;
+  }
 }
 
 export function addBackdrop(scene) {

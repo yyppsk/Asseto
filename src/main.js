@@ -10,12 +10,14 @@ import {
 } from './scene/effects.jsx';
 import { createGroundGrid, getGridCellFromPosition } from './scene/groundGrid.jsx';
 import { loadRealTrackModel } from './scene/realTrack.jsx';
-import { addLighting, addTerrain } from './scene/world.jsx';
+import { addLighting, addTerrain, applyEnvironmentPreset } from './scene/world.jsx';
 
 const ACTIVE_TRACK_VERSION = 'real-model';
 const REAL_PROGRESS_DAMPING = 1.2;
 const REAL_MAX_PROGRESS_PER_SECOND = 0.055;
 const REAL_LAP_SCROLL_PORTION = 0.92;
+const DEFAULT_ENVIRONMENT_MODE = 'night';
+const ENVIRONMENT_MODES = new Set(['day', 'night']);
 
 const canvas = document.querySelector('#race-canvas');
 const segmentName = document.querySelector('#segment-name');
@@ -26,10 +28,13 @@ const trackVersionLabel = document.querySelector('#track-version-label');
 const trackVersionDetail = document.querySelector('#track-version-detail');
 const trackNameElement = document.querySelector('#track-name');
 const trackCredit = document.querySelector('#track-credit');
+const environmentButtons = document.querySelectorAll('[data-environment-mode]');
 
 let renderer;
 let scene;
 let camera;
+let lighting;
+let terrain;
 let trackCurve = null;
 let getSurfaceY = getRealSurfaceY;
 let car;
@@ -40,6 +45,7 @@ let tireStacks = [];
 let sparks = [];
 let progress = 0;
 let easedProgress = 0;
+let environmentMode = getInitialEnvironmentMode();
 let viewport = { width: window.innerWidth, height: window.innerHeight };
 let lastFrameTime = performance.now();
 const cameraLookTarget = new THREE.Vector3();
@@ -54,7 +60,9 @@ init();
 
 async function init() {
   document.body.dataset.trackVersion = ACTIVE_TRACK_VERSION;
+  document.body.dataset.environment = environmentMode;
   updateTrackVersionStatus('loading');
+  updateEnvironmentControls();
 
   renderer = new THREE.WebGLRenderer({
     canvas,
@@ -75,8 +83,9 @@ async function init() {
   camera = new THREE.PerspectiveCamera(40, viewport.width / viewport.height, 0.1, 500);
   camera.position.set(0, 26, 56);
 
-  addLighting(scene);
-  addTerrain(scene);
+  lighting = addLighting(scene);
+  terrain = addTerrain(scene);
+  applyEnvironmentMode(environmentMode);
   scene.add(createGroundGrid());
 
   const realTrack = await loadRealTrackModel({ scene, version: ACTIVE_TRACK_VERSION });
@@ -110,9 +119,48 @@ async function init() {
   window.addEventListener('resize', handleResize);
   window.addEventListener('scroll', updateScrollState, { passive: true });
   window.addEventListener('pointermove', handlePointerMove, { passive: true });
+  environmentButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setEnvironmentMode(button.dataset.environmentMode);
+    });
+  });
 
   requestAnimationFrame(animate);
 }
+
+function getInitialEnvironmentMode() {
+  const savedMode = window.localStorage?.getItem('asseto-environment-mode');
+  return ENVIRONMENT_MODES.has(savedMode) ? savedMode : DEFAULT_ENVIRONMENT_MODE;
+}
+
+function setEnvironmentMode(mode) {
+  if (!ENVIRONMENT_MODES.has(mode) || mode === environmentMode) {
+    return;
+  }
+
+  environmentMode = mode;
+  window.localStorage?.setItem('asseto-environment-mode', environmentMode);
+  applyEnvironmentMode(environmentMode);
+  updateEnvironmentControls();
+}
+
+function applyEnvironmentMode(mode) {
+  if (!scene || !renderer || !lighting || !terrain) {
+    return;
+  }
+
+  document.body.dataset.environment = mode;
+  applyEnvironmentPreset({ mode, scene, renderer, lighting, terrain });
+}
+
+function updateEnvironmentControls() {
+  environmentButtons.forEach((button) => {
+    const isActive = button.dataset.environmentMode === environmentMode;
+    button.setAttribute('aria-pressed', String(isActive));
+  });
+}
+
+// TODO: Add weather preset controls here once the visual targets are defined.
 
 function updateTrackIdentity(config) {
   if (trackNameElement) {

@@ -41,6 +41,38 @@ a {
   z-index: 0;
 }
 
+.environment-controls {
+  position: fixed;
+  top: clamp(0.9rem, 2vw, 1.4rem);
+  right: clamp(0.9rem, 2vw, 1.4rem);
+  z-index: 4;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: min(12.5rem, calc(100vw - 2rem));
+  padding: 0.22rem;
+  border: 1px solid rgb(244 241 232 / 0.22);
+  background: rgb(11 15 19 / 0.58);
+  box-shadow: 0 0.7rem 2.5rem rgb(0 0 0 / 0.22);
+}
+
+.environment-controls button {
+  min-height: 2.1rem;
+  border: 0;
+  background: transparent;
+  color: #d7ded3;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.environment-controls button[aria-pressed="true"] {
+  background: #ffce56;
+  color: #101316;
+}
+
 .scroll-story {
   position: relative;
   z-index: 2;
@@ -182,7 +214,7 @@ h2 {
 
 .race-hud {
   position: fixed;
-  top: clamp(0.9rem, 2vw, 1.4rem);
+  top: clamp(4rem, 6.5vw, 4.9rem);
   right: clamp(0.9rem, 2vw, 1.4rem);
   z-index: 3;
   display: grid;
@@ -331,6 +363,19 @@ body[data-stage="contact"]::before {
     linear-gradient(90deg, rgb(0 0 0 / 0.7), transparent 56%, rgb(0 0 0 / 0.2));
 }
 
+body[data-environment="day"]::before {
+  background:
+    radial-gradient(circle at 50% 48%, transparent 0 48%, rgb(44 72 82 / 0.08) 78%),
+    linear-gradient(90deg, rgb(17 27 33 / 0.22), transparent 48%, rgb(17 27 33 / 0.1));
+}
+
+body[data-environment="day"][data-stage="social"]::before,
+body[data-environment="day"][data-stage="contact"]::before {
+  background:
+    radial-gradient(circle at 50% 48%, transparent 0 44%, rgb(38 59 67 / 0.1) 76%),
+    linear-gradient(90deg, rgb(17 27 33 / 0.32), transparent 58%, rgb(17 27 33 / 0.08));
+}
+
 @media (max-width: 720px) {
   .story-section {
     min-height: 112vh;
@@ -362,6 +407,7 @@ body[data-stage="contact"]::before {
   }
 
   .race-hud {
+    top: 4.75rem;
     left: 1rem;
     right: 1rem;
     width: auto;
@@ -382,6 +428,12 @@ body[data-stage="contact"]::before {
     bottom: 5.85rem;
     max-width: none;
     text-align: left;
+  }
+
+  .environment-controls {
+    left: 1rem;
+    right: 1rem;
+    width: auto;
   }
 
   .credit {

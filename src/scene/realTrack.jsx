@@ -19,6 +19,11 @@ export const REAL_TRACK_MODELS = {
     routeUMax: 0.8,
     routeBins: 168,
     routeYOffset: 0.04,
+    routeClusterWindows: true,
+    routeClusterDistance: 7,
+    routeClusterMinSamples: 3,
+    routeClusterTurnWeight: 4,
+    routeClusterMaxSegment: 18,
     curveType: "polyline",
     routeTangentWindow: 7,
     routeBacktrackTurnDegrees: 135,
@@ -455,6 +460,10 @@ function createUvCenterlineRoutePoints(meshes, config) {
 }
 
 function createUvCrossSectionRoutePoints(meshes, config) {
+  if (config.routeClusterWindows) {
+    return createClusteredUvCrossSectionRoutePoints(meshes, config);
+  }
+
   const routePoints = [];
   const minU = config.routeUMin ?? 0;
   const maxU = config.routeUMax ?? 1;
@@ -505,6 +514,144 @@ function createUvCrossSectionRoutePoints(meshes, config) {
     removeClosePoints(routePoints, config.routeMinDistance ?? 0.34),
     config.routeSmoothingPasses ?? 2,
   );
+}
+
+function createClusteredUvCrossSectionRoutePoints(meshes, config) {
+  const windows = [];
+  const minU = config.routeUMin ?? 0;
+  const maxU = config.routeUMax ?? 1;
+
+  for (const mesh of meshes) {
+    const position = mesh.geometry.attributes.position;
+    const uv = mesh.geometry.attributes.uv;
+
+    if (!uv) {
+      continue;
+    }
+
+    const samples = [];
+    for (let i = 0; i < position.count; i += 1) {
+      const u = uv.getX(i);
+      if (u < minU || u > maxU) {
+        continue;
+      }
+
+      samples.push({
+        longitudinal: uv.getY(i),
+        point: new THREE.Vector3()
+          .fromBufferAttribute(position, i)
+          .applyMatrix4(mesh.matrixWorld),
+      });
+    }
+
+    if (samples.length < config.minRoutePoints) {
+      continue;
+    }
+
+    samples.sort((a, b) => a.longitudinal - b.longitudinal);
+    const target = config.routePointTarget ?? 240;
+    const windowSize = Math.max(8, Math.floor(samples.length / target));
+
+    for (let i = 0; i < samples.length; i += windowSize) {
+      const windowPoints = samples.slice(i, i + windowSize).map((sample) => sample.point);
+      const clusters = clusterRouteWindowPoints(windowPoints, config)
+        .filter((cluster) => cluster.count >= (config.routeClusterMinSamples ?? 3))
+        .sort((a, b) => b.count - a.count);
+
+      if (clusters.length) {
+        windows.push(clusters);
+      }
+    }
+  }
+
+  const routePoints = chooseContinuousRouteClusters(windows, config);
+
+  return smoothRoute(
+    removeClosePoints(routePoints, config.routeMinDistance ?? 0.34),
+    config.routeSmoothingPasses ?? 2,
+  );
+}
+
+function clusterRouteWindowPoints(points, config) {
+  const threshold = config.routeClusterDistance ?? 7;
+  const thresholdSquared = threshold * threshold;
+  const clusters = [];
+
+  for (const point of points) {
+    let nearestCluster = null;
+    let nearestDistance = Infinity;
+
+    for (const cluster of clusters) {
+      const distance = (point.x - cluster.point.x) ** 2 + (point.z - cluster.point.z) ** 2;
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestCluster = cluster;
+      }
+    }
+
+    if (nearestCluster && nearestDistance <= thresholdSquared) {
+      nearestCluster.point
+        .multiplyScalar(nearestCluster.count)
+        .add(point)
+        .multiplyScalar(1 / (nearestCluster.count + 1));
+      nearestCluster.count += 1;
+    } else {
+      clusters.push({ point: point.clone(), count: 1 });
+    }
+  }
+
+  return clusters;
+}
+
+function chooseContinuousRouteClusters(windows, config) {
+  const routePoints = [];
+  let previousDirection = null;
+  const turnWeight = config.routeClusterTurnWeight ?? 4;
+  const maxSegment = config.routeClusterMaxSegment ?? 18;
+
+  for (const clusters of windows) {
+    let choice = clusters[0];
+
+    if (routePoints.length) {
+      const previous = routePoints.at(-1);
+      let bestScore = Infinity;
+
+      for (const cluster of clusters) {
+        const candidate = cluster.point;
+        const delta = candidate.clone().sub(previous).setY(0);
+        const distance = delta.length();
+        let score = distance - Math.min(cluster.count, 40) * 0.025;
+
+        if (previousDirection && distance > 0.001) {
+          const direction = delta.multiplyScalar(1 / distance);
+          score +=
+            (1 - THREE.MathUtils.clamp(previousDirection.dot(direction), -1, 1)) *
+            turnWeight;
+        }
+
+        if (distance > maxSegment) {
+          score += (distance - maxSegment) * 4;
+        }
+
+        if (score < bestScore) {
+          bestScore = score;
+          choice = cluster;
+        }
+      }
+    }
+
+    const point = choice.point.clone().add(new THREE.Vector3(0, config.routeYOffset, 0));
+    if (routePoints.length) {
+      const delta = point.clone().sub(routePoints.at(-1)).setY(0);
+      if (delta.lengthSq() > 0.001) {
+        previousDirection = delta.normalize();
+      }
+    }
+
+    routePoints.push(point);
+  }
+
+  return routePoints;
 }
 
 function findStartPointIndex(points) {

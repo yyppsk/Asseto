@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vite/
+*.local
+*-screenshot.png
+*-check.png
+vite-dev.log
+vite-dev.err

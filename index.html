@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A scroll-driven Spa-Francorchamps racing experience built with Vite and Three.js."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%230b0f13'/%3E%3Cpath d='M12 42c8-18 19-24 34-20 7 2 9 10 4 16-6 7-22 7-38 4Z' fill='%23d9203a'/%3E%3Cpath d='M18 42h31' stroke='%23ffce56' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <title>Asseto Spa Track</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="race-canvas" aria-label="Scroll-driven Spa-Francorchamps race scene"></canvas>
+
+      <main class="scroll-story" aria-label="Asseto racing story">
+        <section class="story-section story-section--intro" data-panel="intro">
+          <div class="copy-block">
+            <p class="eyebrow">Asseto Racing</p>
+            <h1>Spa Track</h1>
+            <p>Race through the Ardennes, from La Source to the final chicane.</p>
+          </div>
+        </section>
+
+        <section class="story-section" data-panel="pace">
+          <div class="copy-block copy-block--quiet">
+            <p class="eyebrow">Sector Run</p>
+            <h2>Eau Rouge. Raidillon. Kemmel.</h2>
+            <p>The Ferrari locks onto the racing line as the lap opens up.</p>
+          </div>
+        </section>
+
+        <section class="story-section" data-panel="social">
+          <div class="copy-block copy-block--social">
+            <p class="eyebrow">First Chicane</p>
+            <h2>Join The Grid</h2>
+            <ul class="detail-list">
+              <li><span>Discord</span><a href="https://discord.gg/asseto" target="_blank" rel="noreferrer">discord.gg/asseto</a></li>
+              <li><span>Instagram</span><a href="https://instagram.com/asseto.racing" target="_blank" rel="noreferrer">@asseto.racing</a></li>
+              <li><span>YouTube</span><a href="https://youtube.com/@asseto" target="_blank" rel="noreferrer">@asseto</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="story-section story-section--finish" data-panel="contact">
+          <div class="copy-block copy-block--contact">
+            <p class="eyebrow">Chicane Exit</p>
+            <h2>Contact / About Us</h2>
+            <p>Asseto is a motorsport-first community experience for drivers, builders, and race fans.</p>
+            <ul class="detail-list">
+              <li><span>Email</span><a href="mailto:hello@asseto.racing">hello@asseto.racing</a></li>
+              <li><span>Phone</span><a href="tel:+15550149117">+1 555 014 9117</a></li>
+              <li><span>Location</span><strong>Francorchamps inspired, globally online</strong></li>
+            </ul>
+          </div>
+        </section>
+      </main>
+
+      <aside class="race-hud" aria-label="Race status">
+        <div>
+          <span>Track</span>
+          <strong>Spa-Francorchamps</strong>
+        </div>
+        <div>
+          <span>Segment</span>
+          <strong id="segment-name">La Source</strong>
+        </div>
+      </aside>
+
+      <div class="progress-rail" aria-hidden="true">
+        <span id="lap-progress"></span>
+      </div>
+
+      <footer class="credit">
+        Track geometry from TUMFTM racetrack-database, LGPL-3.0.
+      </footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

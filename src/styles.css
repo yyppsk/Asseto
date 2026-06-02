@@ -91,6 +91,21 @@ a {
   padding-bottom: clamp(6rem, 9vw, 9rem);
 }
 
+body[data-track-version="real-model"] .story-section,
+body[data-track-version="real-model-2"] .story-section {
+  min-height: 360vh;
+}
+
+body[data-track-version="real-model"] .story-section--intro,
+body[data-track-version="real-model-2"] .story-section--intro {
+  min-height: 260vh;
+}
+
+body[data-track-version="real-model"] .story-section--finish,
+body[data-track-version="real-model-2"] .story-section--finish {
+  min-height: 320vh;
+}
+
 .copy-block {
   width: min(720px, 100%);
   text-shadow: 0 2px 28px rgb(0 0 0 / 0.58);

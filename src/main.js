@@ -30,6 +30,10 @@ const versionThreeLink = document.querySelector('#version-three-link');
 
 const trackVersion = getTrackVersion();
 const isRealVersion = trackVersion !== 'procedural';
+const REAL_PROGRESS_DAMPING = 1.2;
+const REAL_MAX_PROGRESS_PER_SECOND = 0.055;
+const PROCEDURAL_PROGRESS_DAMPING = 7.5;
+const REAL_LAP_SCROLL_PORTION = 0.92;
 
 let renderer;
 let scene;
@@ -47,6 +51,8 @@ let progress = 0;
 let easedProgress = 0;
 let viewport = { width: window.innerWidth, height: window.innerHeight };
 let lastFrameTime = performance.now();
+const cameraLookTarget = new THREE.Vector3();
+let hasCameraLookTarget = false;
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2(-4, -4);
@@ -101,7 +107,7 @@ async function init() {
     const realTrack = await loadRealTrackModel({ scene, version: trackVersion });
     if (realTrack.loaded && realTrack.driveCurve) {
       trackCurve = realTrack.driveCurve;
-      getSurfaceY = getRealSurfaceY;
+      getSurfaceY = realTrack.getSurfaceY ?? getRealSurfaceY;
       trackSource = trackVersion;
       trackGroup.visible = false;
       updateTrackIdentity(realTrack.config);
@@ -210,7 +216,15 @@ function animate() {
   const now = performance.now();
   const delta = Math.min((now - lastFrameTime) / 1000, 0.04);
   lastFrameTime = now;
-  easedProgress = THREE.MathUtils.damp(easedProgress, progress, 7.5, delta);
+  const dampedProgress = THREE.MathUtils.damp(
+    easedProgress,
+    progress,
+    isRealVersion ? REAL_PROGRESS_DAMPING : PROCEDURAL_PROGRESS_DAMPING,
+    delta,
+  );
+  easedProgress = isRealVersion
+    ? moveProgressToward(easedProgress, dampedProgress, REAL_MAX_PROGRESS_PER_SECOND * delta)
+    : dampedProgress;
 
   updateRaceCar({
     trackCurve,
@@ -223,15 +237,72 @@ function animate() {
     camera,
     smokeState,
     getSurfaceY,
+    rideHeight: isRealVersion ? 0.02 : undefined,
+    lockToSurface: isRealVersion,
+    smoothHeading: isRealVersion,
+    headingDamping: 12,
   });
-  updateCompanionCars({ trackCurve, companionCars, t: easedProgress, delta, getSurfaceY, spacingScale: isRealVersion ? 2.8 : 1 });
+  updateCompanionCars({
+    trackCurve,
+    companionCars,
+    t: easedProgress,
+    delta,
+    getSurfaceY,
+    spacingScale: isRealVersion ? 0.55 : 1,
+    rideHeight: isRealVersion ? 0.02 : undefined,
+    lockToSurface: isRealVersion,
+    laneScale: isRealVersion ? 0.2 : 1,
+    smoothHeading: isRealVersion,
+    headingDamping: 10,
+  });
   updateCamera(easedProgress, delta);
   updateSceneDetails({ curbs, tireStacks, raycaster, pointer, camera, delta });
   updateExhaustSmoke(smokeState, delta);
-  updateHud(progress);
+  updateHud(easedProgress);
+  updateDebugState();
 
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
+}
+
+function moveProgressToward(current, target, maxStep) {
+  const difference = target - current;
+  if (Math.abs(difference) <= maxStep) {
+    return target;
+  }
+
+  return current + Math.sign(difference) * maxStep;
+}
+
+function updateDebugState() {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
+  window.__assetoDebug = {
+    progress,
+    easedProgress,
+    car: car
+      ? {
+          x: Number(car.position.x.toFixed(2)),
+          y: Number(car.position.y.toFixed(2)),
+          z: Number(car.position.z.toFixed(2)),
+          yaw: Number(car.rotation.y.toFixed(3)),
+        }
+      : null,
+    companions: companionCars.map(({ group, config }) => ({
+      name: config.name,
+      x: Number(group.position.x.toFixed(2)),
+      y: Number(group.position.y.toFixed(2)),
+      z: Number(group.position.z.toFixed(2)),
+      yaw: Number(group.rotation.y.toFixed(3)),
+    })),
+    camera: {
+      x: Number(camera.position.x.toFixed(2)),
+      y: Number(camera.position.y.toFixed(2)),
+      z: Number(camera.position.z.toFixed(2)),
+    },
+  };
 }
 
 function updateCamera(t, delta) {
@@ -250,11 +321,17 @@ function updateCamera(t, delta) {
     .add(cinematicOffset)
     .add(new THREE.Vector3(0, height, 0));
 
-  camera.position.lerp(targetPosition, 1 - Math.exp(-delta * 3.6));
+  camera.position.lerp(targetPosition, 1 - Math.exp(-delta * (isRealVersion ? 3 : 3.6)));
 
-  const lookAhead = point.clone().add(tangent.multiplyScalar(2.6));
-  lookAhead.y = point.y + 0.9;
-  camera.lookAt(lookAhead);
+  const lookAhead = point.clone().add(tangent.multiplyScalar(isRealVersion ? 4.2 : 2.6));
+  lookAhead.y = point.y + (isRealVersion ? 0.72 : 0.9);
+  if (!hasCameraLookTarget) {
+    cameraLookTarget.copy(lookAhead);
+    hasCameraLookTarget = true;
+  } else {
+    cameraLookTarget.lerp(lookAhead, 1 - Math.exp(-delta * (isRealVersion ? 4.8 : 7.5)));
+  }
+  camera.lookAt(cameraLookTarget);
 }
 
 function getProceduralSurfaceY(t) {
@@ -293,7 +370,8 @@ function getSegmentName(t) {
 
 function updateScrollState() {
   const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-  progress = THREE.MathUtils.clamp(window.scrollY / maxScroll, 0, 0.995);
+  const lapScrollDistance = isRealVersion ? maxScroll * REAL_LAP_SCROLL_PORTION : maxScroll;
+  progress = THREE.MathUtils.clamp(window.scrollY / lapScrollDistance, 0, 0.995);
   updatePanels(progress);
 }
 

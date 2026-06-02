@@ -45,6 +45,10 @@ export function updateRaceCar({
   camera,
   smokeState,
   getSurfaceY = getProceduralSurfaceY,
+  rideHeight = CAR_RIDE_HEIGHT,
+  lockToSurface = false,
+  smoothHeading = false,
+  headingDamping = 14,
 }) {
   if (!trackCurve || !car) {
     return;
@@ -55,10 +59,15 @@ export function updateRaceCar({
   const tangent = trackCurve.getTangentAt(trackT).normalize();
   const chicaneEnergy = smoothPulse(t, CHICANE_START, 0.08);
   const surfaceY = getSurfaceY(trackT, carPoint);
+  const surfaceMotion = lockToSurface ? 0 : Math.sin(t * Math.PI * 16) * 0.025 + chicaneEnergy * 0.1;
 
   car.position.copy(carPoint);
-  car.position.y = surfaceY + CAR_RIDE_HEIGHT + Math.sin(t * Math.PI * 16) * 0.025 + chicaneEnergy * 0.1;
-  car.rotation.y = Math.atan2(tangent.x, tangent.z);
+  car.position.y = surfaceY + rideHeight + surfaceMotion;
+  setHeading(car, Math.atan2(tangent.x, tangent.z), {
+    smoothHeading,
+    headingDamping,
+    delta,
+  });
   car.rotation.z = THREE.MathUtils.damp(car.rotation.z, Math.sin(t * Math.PI * 22) * 0.04 * chicaneEnergy, 6, delta);
   car.rotation.x = THREE.MathUtils.damp(car.rotation.x, -0.04 - chicaneEnergy * 0.06, 5, delta);
 
@@ -76,6 +85,11 @@ export function updateCompanionCars({
   delta,
   getSurfaceY = getProceduralSurfaceY,
   spacingScale = 1,
+  rideHeight = CAR_RIDE_HEIGHT,
+  lockToSurface = false,
+  laneScale = 1,
+  smoothHeading = false,
+  headingDamping = 14,
 }) {
   if (!trackCurve || !companionCars.length) {
     return;
@@ -89,12 +103,22 @@ export function updateCompanionCars({
     const chicaneEnergy = smoothPulse(carT, CHICANE_START, 0.09);
     const surfaceY = getSurfaceY(carT, point);
     const laneDrift = Math.sin((t + index * 0.21) * Math.PI * 2) * 0.12;
-    const targetPosition = point.clone().add(normal.multiplyScalar(config.laneOffset + laneDrift));
+    const targetPosition = point.clone().add(normal.multiplyScalar(config.laneOffset * laneScale + laneDrift));
+    const surfaceMotion =
+      lockToSurface ? 0 : Math.sin((t + index * 0.13) * Math.PI * 14) * 0.018 + chicaneEnergy * 0.045;
 
-    targetPosition.y =
-      surfaceY + CAR_RIDE_HEIGHT + Math.sin((t + index * 0.13) * Math.PI * 14) * 0.018 + chicaneEnergy * 0.045;
-    group.position.lerp(targetPosition, 1 - Math.exp(-delta * 8));
-    group.rotation.y = Math.atan2(tangent.x, tangent.z);
+    targetPosition.y = surfaceY + rideHeight + surfaceMotion;
+    if (!group.userData.hasTrackPosition) {
+      group.position.copy(targetPosition);
+      group.userData.hasTrackPosition = true;
+    } else {
+      group.position.lerp(targetPosition, 1 - Math.exp(-delta * 8));
+    }
+    setHeading(group, Math.atan2(tangent.x, tangent.z), {
+      smoothHeading,
+      headingDamping,
+      delta,
+    });
     group.rotation.z = THREE.MathUtils.damp(
       group.rotation.z,
       Math.sin((carT + index * 0.17) * Math.PI * 18) * 0.022 * chicaneEnergy,
@@ -103,6 +127,21 @@ export function updateCompanionCars({
     );
     group.rotation.x = THREE.MathUtils.damp(group.rotation.x, -0.025 - chicaneEnergy * 0.035, 6, delta);
   });
+}
+
+function setHeading(object, targetYaw, { smoothHeading, headingDamping, delta }) {
+  if (!smoothHeading || !object.userData.hasHeading) {
+    object.rotation.y = targetYaw;
+    object.userData.hasHeading = true;
+    return;
+  }
+
+  object.rotation.y = dampAngle(object.rotation.y, targetYaw, headingDamping, delta);
+}
+
+function dampAngle(current, target, lambda, delta) {
+  const angleDelta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
+  return current + angleDelta * (1 - Math.exp(-lambda * delta));
 }
 
 function prepareLoadedCarModel(model) {

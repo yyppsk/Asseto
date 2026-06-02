@@ -3,7 +3,7 @@
 Version 2 loads the downloaded model package from:
 
 ```text
-public/models/real track/source/track.glb
+frontend/public/models/real track/source/track.glb
 ```
 
 The original downloaded folder name is kept intact so any embedded or sibling texture references stay valid. The URL used by Vite is:
@@ -17,16 +17,10 @@ Version 2 now hides the procedural Spa road and derives the car route from the i
 Version 3 loads the test model from:
 
 ```text
-public/models/real track 2/nurburgring_race_driver_grid_ds.glb
+backup/version-1-and-3/public/models/real track 2/nurburgring_race_driver_grid_ds.glb
 ```
 
-The Vite URL is:
-
-```text
-/models/real%20track%202/nurburgring_race_driver_grid_ds.glb
-```
-
-Version 3 also hides the procedural road. It derives an open test route from marker mesh chunks in the imported model. This is good enough for a local test page, but the highest-quality future improvement would be a hand-authored centerline or exported curve from the track source file.
+Version 3 is kept only as backup code/assets and is no longer imported by the active app. It derived an open test route from marker mesh chunks in the imported model. This is good enough for a local test page, but the highest-quality future improvement would be a hand-authored centerline or exported curve from the track source file.
 
 Suggested free candidates to try:
 

@@ -1,7 +1,10 @@
 node_modules/
 dist/
+frontend/dist/
+backend/public/app/
 .vite/
 *.local
+screenshots/
 *-screenshot.png
 *-check.png
 vite-dev.log

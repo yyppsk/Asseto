@@ -1,0 +1,12 @@
+node_modules
+dist
+frontend/dist
+backend/public/app
+screenshots
+.git
+.vite
+*.local
+*-screenshot.png
+*-check.png
+vite-dev.log
+vite-dev.err

@@ -1,6 +1,8 @@
 import { createServer } from 'vite';
+import { fileURLToPath } from 'node:url';
 
 const server = await createServer({
+  configFile: fileURLToPath(new URL('../vite.config.js', import.meta.url)),
   server: {
     host: '127.0.0.1',
     port: 5173,

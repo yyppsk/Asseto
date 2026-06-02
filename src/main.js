@@ -82,7 +82,9 @@ async function init() {
   addLighting(scene);
   addTerrain(scene);
   scene.add(createGroundGrid());
-  addBackdrop(scene);
+  if (!isRealVersion) {
+    addBackdrop(scene);
+  }
 
   const track = await loadSpaTrack();
   trackSource = track.source;
@@ -116,14 +118,16 @@ async function init() {
     updateTrackVersionStatus('procedural');
   }
 
-  createCircuitEnvironment({ scene, trackCurve, getSurfaceY });
+  if (!isRealVersion) {
+    createCircuitEnvironment({ scene, trackCurve, getSurfaceY });
+  }
 
   car = new THREE.Group();
   car.name = 'race-car';
   scene.add(car);
   loadRaceCarModel({ car, scene, companionCars });
 
-  createTrackDetails({ scene, trackCurve, tireStacks, sparks, getSurfaceY });
+  createTrackDetails({ scene, trackCurve, tireStacks, sparks, getSurfaceY, includeTrackside: !isRealVersion });
   smokeState = createExhaustSmoke({ scene });
   updateScrollState();
   updatePanels(progress);

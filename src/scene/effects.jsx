@@ -7,23 +7,32 @@ function getProceduralSurfaceY(t) {
   return TRACK_HEIGHT + getSpaElevation(t);
 }
 
-export function createTrackDetails({ scene, trackCurve, tireStacks, sparks, getSurfaceY = getProceduralSurfaceY }) {
+export function createTrackDetails({
+  scene,
+  trackCurve,
+  tireStacks,
+  sparks,
+  getSurfaceY = getProceduralSurfaceY,
+  includeTrackside = true,
+}) {
   const stackGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.42, 16);
   const stackMaterial = new THREE.MeshStandardMaterial({ color: 0x090909, roughness: 0.85 });
   const sparkMaterial = new THREE.MeshBasicMaterial({ color: 0xffc845, transparent: true, opacity: 0.9 });
 
-  for (let i = 0; i < 30; i += 1) {
-    const t = (i / 30 + 0.04) % 1;
-    const point = trackCurve.getPointAt(t);
-    const tangent = trackCurve.getTangentAt(t);
-    const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-    const stack = new THREE.Mesh(stackGeometry, stackMaterial);
-    stack.position.copy(point).add(normal.multiplyScalar(i % 2 === 0 ? 3.8 : -3.8));
-    stack.position.y = getSurfaceY(t, point) + 0.36;
-    stack.rotation.z = Math.PI / 2;
-    stack.castShadow = true;
-    tireStacks.push(stack);
-    scene.add(stack);
+  if (includeTrackside) {
+    for (let i = 0; i < 30; i += 1) {
+      const t = (i / 30 + 0.04) % 1;
+      const point = trackCurve.getPointAt(t);
+      const tangent = trackCurve.getTangentAt(t);
+      const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      const stack = new THREE.Mesh(stackGeometry, stackMaterial);
+      stack.position.copy(point).add(normal.multiplyScalar(i % 2 === 0 ? 3.8 : -3.8));
+      stack.position.y = getSurfaceY(t, point) + 0.36;
+      stack.rotation.z = Math.PI / 2;
+      stack.castShadow = true;
+      tireStacks.push(stack);
+      scene.add(stack);
+    }
   }
 
   for (let i = 0; i < 34; i += 1) {

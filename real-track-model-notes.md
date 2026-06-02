@@ -12,7 +12,7 @@ The original downloaded folder name is kept intact so any embedded or sibling te
 /models/real%20track/source/track.glb
 ```
 
-Version 2 now hides the procedural Spa road and derives the car route from the imported model's `road` mesh using ordered road vertices.
+Version 2 now hides the procedural Spa road and derives the car route from the imported model's `road` mesh. The model is fitted larger than the earlier pass so the Ferrari sits at a more believable scale, and the route is built from averaged road UV cross-sections rather than one brittle vertex stripe. This keeps the car on the visible asphalt through the late social/contact stretch.
 
 Version 3 loads the test model from:
 
@@ -26,7 +26,7 @@ The Vite URL is:
 /models/real%20track%202/nurburgring_race_driver_grid_ds.glb
 ```
 
-Version 3 also hides the procedural road. It derives an open test route from uppercase `Track...` mesh chunks in the imported model. This is good enough for a local test page, but the highest-quality future improvement would be a hand-authored centerline or exported curve from the track source file.
+Version 3 also hides the procedural road. It derives an open test route from marker mesh chunks in the imported model. This is good enough for a local test page, but the highest-quality future improvement would be a hand-authored centerline or exported curve from the track source file.
 
 Suggested free candidates to try:
 

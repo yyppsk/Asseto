@@ -9,11 +9,13 @@ export const REAL_TRACK_MODELS = {
     credit: 'Real track model loaded from local GLB package.',
     path: '/models/real%20track/source/track.glb',
     candidateUrl: 'https://sketchfab.com/3d-models/race-track-23mb-glb-1d3a0a5a7f5c48ecbc8ff967ec36e6e5',
-    fitSize: 110,
+    fitSize: 220,
     groundInset: 0.025,
-    driveStrategy: 'vertex-sequence',
+    driveStrategy: 'uv-cross-section',
     driveMeshNames: ['road'],
-    routePointTarget: 220,
+    routePointTarget: 260,
+    routeUMin: 0.2,
+    routeUMax: 0.8,
     routeBins: 168,
     routeYOffset: 0.04,
     minRoutePoints: 32,
@@ -114,6 +116,16 @@ function createDriveRoute(model, config) {
   if (config.driveStrategy === 'vertex-sequence') {
     points = createVertexSequenceRoutePoints(driveMeshes, config);
     routeMethod = 'road-vertex sequence';
+  }
+
+  if (config.driveStrategy === 'uv-centerline') {
+    points = createUvCenterlineRoutePoints(driveMeshes, config);
+    routeMethod = 'road UV centerline';
+  }
+
+  if (config.driveStrategy === 'uv-cross-section') {
+    points = createUvCrossSectionRoutePoints(driveMeshes, config);
+    routeMethod = 'road UV cross-section';
   }
 
   if (points.length < config.minRoutePoints) {
@@ -219,6 +231,102 @@ function createNearestMeshRoutePoints(meshes, config) {
   }
 
   return smoothRoute(removeClosePoints(route, 0.28), 1);
+}
+
+function createUvCenterlineRoutePoints(meshes, config) {
+  const routePoints = [];
+  const centerU = config.centerU ?? 0.5;
+  const tolerance = config.centerUTolerance ?? 0.04;
+
+  for (const mesh of meshes) {
+    const position = mesh.geometry.attributes.position;
+    const uv = mesh.geometry.attributes.uv;
+
+    if (!uv) {
+      continue;
+    }
+
+    const samples = [];
+    for (let i = 0; i < position.count; i += 1) {
+      const u = uv.getX(i);
+      if (Math.abs(u - centerU) > tolerance) {
+        continue;
+      }
+
+      samples.push({
+        longitudinal: uv.getY(i),
+        point: new THREE.Vector3().fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld),
+      });
+    }
+
+    if (samples.length < config.minRoutePoints) {
+      continue;
+    }
+
+    samples.sort((a, b) => a.longitudinal - b.longitudinal);
+    const target = config.routePointTarget ?? 240;
+    const windowSize = Math.max(4, Math.floor(samples.length / target));
+
+    for (let i = 0; i < samples.length; i += windowSize) {
+      const window = samples.slice(i, i + windowSize);
+      const point = window
+        .reduce((sum, sample) => sum.add(sample.point), new THREE.Vector3())
+        .multiplyScalar(1 / window.length)
+        .add(new THREE.Vector3(0, config.routeYOffset, 0));
+
+      routePoints.push(point);
+    }
+  }
+
+  return smoothRoute(removeClosePoints(routePoints, 0.34), 2);
+}
+
+function createUvCrossSectionRoutePoints(meshes, config) {
+  const routePoints = [];
+  const minU = config.routeUMin ?? 0;
+  const maxU = config.routeUMax ?? 1;
+
+  for (const mesh of meshes) {
+    const position = mesh.geometry.attributes.position;
+    const uv = mesh.geometry.attributes.uv;
+
+    if (!uv) {
+      continue;
+    }
+
+    const samples = [];
+    for (let i = 0; i < position.count; i += 1) {
+      const u = uv.getX(i);
+      if (u < minU || u > maxU) {
+        continue;
+      }
+
+      samples.push({
+        longitudinal: uv.getY(i),
+        point: new THREE.Vector3().fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld),
+      });
+    }
+
+    if (samples.length < config.minRoutePoints) {
+      continue;
+    }
+
+    samples.sort((a, b) => a.longitudinal - b.longitudinal);
+    const target = config.routePointTarget ?? 240;
+    const windowSize = Math.max(8, Math.floor(samples.length / target));
+
+    for (let i = 0; i < samples.length; i += windowSize) {
+      const window = samples.slice(i, i + windowSize);
+      const point = window
+        .reduce((sum, sample) => sum.add(sample.point), new THREE.Vector3())
+        .multiplyScalar(1 / window.length)
+        .add(new THREE.Vector3(0, config.routeYOffset, 0));
+
+      routePoints.push(point);
+    }
+  }
+
+  return smoothRoute(removeClosePoints(routePoints, 0.34), 2);
 }
 
 function findStartPointIndex(points) {

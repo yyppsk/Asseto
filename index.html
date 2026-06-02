@@ -17,6 +17,11 @@
     <div id="app">
       <canvas id="race-canvas" aria-label="Scroll-driven Spa-Francorchamps race scene"></canvas>
 
+      <nav class="version-switcher" aria-label="Track version switcher">
+        <a id="version-one-link" href="?version=1">Version 1</a>
+        <a id="version-two-link" href="?version=2">Version 2</a>
+      </nav>
+
       <main class="scroll-story" aria-label="Asseto racing story">
         <section class="story-section story-section--intro" data-panel="intro">
           <div class="copy-block">
@@ -69,6 +74,18 @@
           <span>Segment</span>
           <strong id="segment-name">La Source</strong>
         </div>
+      </aside>
+
+      <aside class="grid-readout" aria-live="polite">
+        <span>Grid</span>
+        <strong id="grid-cell">--</strong>
+        <small id="grid-position">X -- / Z --</small>
+      </aside>
+
+      <aside class="track-version-status" aria-live="polite">
+        <span>Version</span>
+        <strong id="track-version-label">Procedural</strong>
+        <small id="track-version-detail">Premium procedural track</small>
       </aside>
 
       <div class="progress-rail" aria-hidden="true">

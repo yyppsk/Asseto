@@ -1,0 +1,23 @@
+{
+  "trackRelative": {
+    "raceGantry": [{ "t": 0.012, "side": 0, "lateral": 0 }],
+    "pitComplex": [{ "t": 0.04, "side": -1, "lateral": 7.5 }],
+    "grandstands": [
+      { "t": 0.18, "side": 1, "lateral": 8.2 },
+      { "t": 0.61, "side": -1, "lateral": 8.8 }
+    ],
+    "vendorVillages": [{ "t": 0.69, "side": -1, "lateral": 14.8, "forward": -1.6 }],
+    "serviceVehicles": [{ "t": 0.055, "side": -1, "lateral": 12.2 }],
+    "marshalPosts": [
+      { "t": 0.1, "side": 1, "lateral": 5.6 },
+      { "t": 0.28, "side": -1, "lateral": 5.4 },
+      { "t": 0.48, "side": 1, "lateral": 5.8 },
+      { "t": 0.64, "side": -1, "lateral": 5.6 },
+      { "t": 0.83, "side": 1, "lateral": 5.8 }
+    ]
+  },
+  "gridNotes": [
+    { "cell": "P21", "label": "Chicane camera reference" },
+    { "cell": "H13", "label": "Vendor tents current area" }
+  ]
+}

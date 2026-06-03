@@ -6,6 +6,12 @@ import { emitExhaustSmoke, updateSparks } from './effects.jsx';
 import { smoothPulse } from './trackFrame.js';
 
 let vehicleLightAssets = null;
+const raceCarPoint = new THREE.Vector3();
+const raceCarTangent = new THREE.Vector3();
+const companionPoint = new THREE.Vector3();
+const companionTangent = new THREE.Vector3();
+const companionNormal = new THREE.Vector3();
+const companionTargetPosition = new THREE.Vector3();
 
 function getDefaultSurfaceY(_t, point) {
   return point?.y ?? TRACK_HEIGHT;
@@ -57,8 +63,8 @@ export function updateRaceCar({
   }
 
   const trackT = t % 1;
-  const carPoint = trackCurve.getPointAt(trackT);
-  const tangent = trackCurve.getTangentAt(trackT).normalize();
+  const carPoint = getCurvePointAt(trackCurve, trackT, raceCarPoint);
+  const tangent = getCurveTangentAt(trackCurve, trackT, raceCarTangent);
   const chicaneEnergy = smoothPulse(t, CHICANE_START, 0.08);
   const surfaceY = getSurfaceY(trackT, carPoint);
   const surfaceMotion = lockToSurface ? 0 : Math.sin(t * Math.PI * 16) * 0.025 + chicaneEnergy * 0.1;
@@ -99,13 +105,15 @@ export function updateCompanionCars({
 
   companionCars.forEach(({ group, config }, index) => {
     const carT = (t + config.offset * spacingScale + 1) % 1;
-    const point = trackCurve.getPointAt(carT);
-    const tangent = trackCurve.getTangentAt(carT).normalize();
-    const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+    const point = getCurvePointAt(trackCurve, carT, companionPoint);
+    const tangent = getCurveTangentAt(trackCurve, carT, companionTangent);
+    const normal = companionNormal.set(-tangent.z, 0, tangent.x).normalize();
     const chicaneEnergy = smoothPulse(carT, CHICANE_START, 0.09);
     const surfaceY = getSurfaceY(carT, point);
     const laneDrift = Math.sin((t + index * 0.21) * Math.PI * 2) * 0.12;
-    const targetPosition = point.clone().add(normal.multiplyScalar(config.laneOffset * laneScale + laneDrift));
+    const targetPosition = companionTargetPosition
+      .copy(point)
+      .addScaledVector(normal, config.laneOffset * laneScale + laneDrift);
     const surfaceMotion =
       lockToSurface ? 0 : Math.sin((t + index * 0.13) * Math.PI * 14) * 0.018 + chicaneEnergy * 0.045;
 
@@ -158,6 +166,22 @@ function setHeading(object, targetYaw, { smoothHeading, headingDamping, delta })
   }
 
   object.rotation.y = dampAngle(object.rotation.y, targetYaw, headingDamping, delta);
+}
+
+function getCurvePointAt(curve, t, target) {
+  if (typeof curve.getPointAtInto === 'function') {
+    return curve.getPointAtInto(t, target);
+  }
+
+  return target.copy(curve.getPointAt(t));
+}
+
+function getCurveTangentAt(curve, t, target) {
+  if (typeof curve.getTangentAtInto === 'function') {
+    return curve.getTangentAtInto(t, target);
+  }
+
+  return target.copy(curve.getTangentAt(t)).normalize();
 }
 
 function dampAngle(current, target, lambda, delta) {

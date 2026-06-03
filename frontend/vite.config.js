@@ -20,5 +20,32 @@ export default defineConfig({
   build: {
     outDir: '../backend/public/app',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replaceAll('\\', '/');
+
+          if (normalizedId.includes('/node_modules/three/')) {
+            return 'vendor-three';
+          }
+
+          if (normalizedId.includes('/node_modules/react/') || normalizedId.includes('/node_modules/react-dom/')) {
+            return 'vendor-react';
+          }
+
+          if (
+            normalizedId.includes('/node_modules/lucide-react/') ||
+            normalizedId.includes('/node_modules/@radix-ui/') ||
+            normalizedId.includes('/node_modules/class-variance-authority/') ||
+            normalizedId.includes('/node_modules/tailwind-merge/') ||
+            normalizedId.includes('/node_modules/clsx/')
+          ) {
+            return 'vendor-ui';
+          }
+
+          return undefined;
+        },
+      },
+    },
   },
 });

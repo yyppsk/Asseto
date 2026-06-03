@@ -27,6 +27,7 @@ export function createGroundGrid() {
 
   addAxisLabels(group);
   addCellLabels(group);
+  freezeStaticObject(group);
   return group;
 }
 
@@ -134,4 +135,12 @@ function toColumnName(index) {
   } while (number >= 0);
 
   return name;
+}
+
+function freezeStaticObject(root) {
+  root.traverse((child) => {
+    child.updateMatrix();
+    child.matrixAutoUpdate = false;
+  });
+  root.updateMatrixWorld(true);
 }

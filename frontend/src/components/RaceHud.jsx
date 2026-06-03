@@ -1,4 +1,6 @@
 export function RaceHud() {
+  const showDevelopmentGrid = import.meta.env.DEV;
+
   return (
     <>
       <aside className="race-hud" aria-label="Race status">
@@ -12,11 +14,13 @@ export function RaceHud() {
         </div>
       </aside>
 
-      <aside className="grid-readout" aria-live="polite">
-        <span>Grid</span>
-        <strong id="grid-cell">--</strong>
-        <small id="grid-position">X -- / Z --</small>
-      </aside>
+      {showDevelopmentGrid ? (
+        <aside className="grid-readout" aria-live="polite">
+          <span>Grid</span>
+          <strong id="grid-cell">--</strong>
+          <small id="grid-position">X -- / Z --</small>
+        </aside>
+      ) : null}
 
       <aside className="track-version-status" aria-live="polite">
         <span>Version</span>

@@ -50,12 +50,14 @@ export function addTerrain(scene) {
     }),
   );
   ground.receiveShadow = true;
+  freezeStaticObject(ground);
   scene.add(ground);
 
   const grid = new THREE.GridHelper(240, 48, 0x3f5346, 0x2e3a33);
   grid.position.y = -0.055;
   grid.material.opacity = 0.12;
   grid.material.transparent = true;
+  freezeStaticObject(grid);
   scene.add(grid);
 
   return { ground, grid };
@@ -213,6 +215,14 @@ function setMaterialColor(material, colors) {
     entry.color?.setHex(colors[index] ?? colors[0]);
     entry.needsUpdate = true;
   }
+}
+
+function freezeStaticObject(root) {
+  root.traverse((child) => {
+    child.updateMatrix();
+    child.matrixAutoUpdate = false;
+  });
+  root.updateMatrixWorld(true);
 }
 
 export function addBackdrop(scene) {

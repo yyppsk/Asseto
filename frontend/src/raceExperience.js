@@ -6,7 +6,6 @@ import {
   updateExhaustSmoke,
   updateSceneDetails,
 } from './scene/effects.jsx';
-import { createGroundGrid, getGridCellFromPosition } from './scene/groundGrid.jsx';
 import { loadRealTrackModel } from './scene/realTrack.jsx';
 import { createWeatherSystem, updateWeatherSystem } from './scene/weather.jsx';
 import { addLighting, addTerrain, applyEnvironmentPreset, updateStreetLightDynamicLights } from './scene/world.jsx';
@@ -19,6 +18,9 @@ const DEFAULT_ENVIRONMENT_MODE = 'night';
 const ENVIRONMENT_MODES = new Set(['day', 'night']);
 const DEFAULT_WEATHER_MODE = 'clear';
 const WEATHER_MODES = new Set(['clear', 'rain', 'snow']);
+const ENABLE_DEVELOPMENT_GRID = import.meta.env.DEV;
+const MAX_RENDER_PIXEL_RATIO = 1.5;
+const STREET_LIGHT_UPDATE_INTERVAL = 0.1;
 
 let canvas;
 let segmentName;
@@ -34,6 +36,9 @@ let weatherButtons = [];
 let windButton;
 let routeNav;
 let routeProgressValue;
+let panelElements = [];
+let routeButtons = [];
+let cachedRouteStops = [];
 
 let renderer;
 let scene;
@@ -64,11 +69,24 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2(-4, -4);
 const pointerGroundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const pointerGroundPoint = new THREE.Vector3();
+let getGridCellFromPosition = null;
 let animationFrameId = 0;
 let disposed = false;
 let cleanupCallbacks = [];
 let activeCleanup = null;
 let activeRunId = 0;
+let currentPanelStage = '';
+let isPageVisible = !document.hidden;
+let streetLightUpdateTimer = STREET_LIGHT_UPDATE_INTERVAL;
+let vehicleLightsDirty = true;
+let vehicleLightSignature = '';
+
+const cameraTrackPoint = new THREE.Vector3();
+const cameraTangent = new THREE.Vector3();
+const cameraNormal = new THREE.Vector3();
+const cameraOffset = new THREE.Vector3();
+const cameraTargetPosition = new THREE.Vector3();
+const cameraLookAhead = new THREE.Vector3();
 
 export function initRaceExperience() {
   activeCleanup?.();
@@ -88,8 +106,7 @@ export function initRaceExperience() {
 }
 
 export function syncRaceExperienceContent() {
-  routeNav = document.querySelector('.track-nav');
-  routeProgressValue = document.querySelector('#route-progress-value');
+  cacheContentElements();
   updatePanels(progress);
 }
 
@@ -106,8 +123,23 @@ function bindDomElements() {
   environmentButtons = document.querySelectorAll('[data-environment-mode]');
   weatherButtons = document.querySelectorAll('[data-weather-mode]');
   windButton = document.querySelector('[data-wind-toggle]');
+  cacheContentElements();
+}
+
+function cacheContentElements() {
   routeNav = document.querySelector('.track-nav');
   routeProgressValue = document.querySelector('#route-progress-value');
+  panelElements = [...document.querySelectorAll('[data-panel]')];
+  routeButtons = [...document.querySelectorAll('[data-route-progress]')];
+  cachedRouteStops = routeButtons
+    .map((button) => ({
+      stage: button.dataset.routeStage,
+      label: button.querySelector('strong')?.textContent || button.dataset.routeStage,
+      progress: Number(button.dataset.routeProgress),
+    }))
+    .filter((stop) => stop.stage && Number.isFinite(stop.progress))
+    .sort((left, right) => left.progress - right.progress);
+  currentPanelStage = '';
 }
 
 function resetRaceState() {
@@ -136,6 +168,11 @@ function resetRaceState() {
   hasCameraLookTarget = false;
   disposed = false;
   cleanupCallbacks = [];
+  currentPanelStage = '';
+  isPageVisible = !document.hidden;
+  streetLightUpdateTimer = STREET_LIGHT_UPDATE_INTERVAL;
+  vehicleLightsDirty = true;
+  vehicleLightSignature = '';
 }
 
 function cleanupRaceExperience(runId = activeRunId) {
@@ -166,10 +203,10 @@ async function init(runId) {
     canvas,
     antialias: true,
     alpha: false,
-    preserveDrawingBuffer: true,
+    preserveDrawingBuffer: false,
     powerPreference: 'high-performance',
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+  renderer.setPixelRatio(getRenderPixelRatio());
   renderer.setSize(viewport.width, viewport.height);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -185,7 +222,13 @@ async function init(runId) {
   terrain = addTerrain(scene);
   weather = createWeatherSystem({ scene });
   applyEnvironmentMode(environmentMode);
-  scene.add(createGroundGrid());
+  const groundGrid = await loadDevelopmentGroundGrid();
+  if (!isRaceRunActive(runId)) {
+    return;
+  }
+  if (groundGrid) {
+    scene.add(groundGrid);
+  }
 
   const realTrack = await loadRealTrackModel({ scene, version: ACTIVE_TRACK_VERSION });
   if (!isRaceRunActive(runId)) {
@@ -224,7 +267,10 @@ async function init(runId) {
 
   addWindowListener('resize', handleResize);
   addWindowListener('scroll', updateScrollState, { passive: true });
-  addWindowListener('pointermove', handlePointerMove, { passive: true });
+  if (ENABLE_DEVELOPMENT_GRID) {
+    addWindowListener('pointermove', handlePointerMove, { passive: true });
+  }
+  addDocumentListener('visibilitychange', handleVisibilityChange);
   environmentButtons.forEach((button) => {
     addElementListener(button, 'click', () => {
       setEnvironmentMode(button.dataset.environmentMode);
@@ -253,9 +299,24 @@ function setLoadingState(isLoading) {
   document.body.dataset.loading = String(isLoading);
 }
 
+async function loadDevelopmentGroundGrid() {
+  if (!ENABLE_DEVELOPMENT_GRID) {
+    return null;
+  }
+
+  const gridModule = await import('./scene/groundGrid.jsx');
+  getGridCellFromPosition = gridModule.getGridCellFromPosition;
+  return gridModule.createGroundGrid();
+}
+
 function addWindowListener(type, listener, options) {
   window.addEventListener(type, listener, options);
   cleanupCallbacks.push(() => window.removeEventListener(type, listener, options));
+}
+
+function addDocumentListener(type, listener, options) {
+  document.addEventListener(type, listener, options);
+  cleanupCallbacks.push(() => document.removeEventListener(type, listener, options));
 }
 
 function addElementListener(element, type, listener, options) {
@@ -288,6 +349,8 @@ function setEnvironmentMode(mode) {
 
   environmentMode = mode;
   window.localStorage?.setItem('paddockindia-environment-mode', environmentMode);
+  vehicleLightsDirty = true;
+  streetLightUpdateTimer = STREET_LIGHT_UPDATE_INTERVAL;
   applyEnvironmentMode(environmentMode);
   updateEnvironmentControls();
 }
@@ -373,6 +436,12 @@ function animate(runId) {
     return;
   }
 
+  if (!isPageVisible) {
+    lastFrameTime = performance.now();
+    animationFrameId = requestAnimationFrame(() => animate(runId));
+    return;
+  }
+
   const now = performance.now();
   const delta = Math.min((now - lastFrameTime) / 1000, 0.04);
   lastFrameTime = now;
@@ -418,12 +487,8 @@ function animate(runId) {
       smoothHeading: true,
       headingDamping: 10,
     });
-    updateStreetLightDynamicLights(lighting.streetLights, car.position);
-    vehicleLightState = setVehicleLightsEnabled({
-      car,
-      companionCars,
-      enabled: environmentMode === 'night',
-    });
+    syncStreetLightDynamicLights(delta);
+    syncVehicleLights();
     updateCamera(easedProgress, delta);
     updateHud(easedProgress);
   }
@@ -500,25 +565,57 @@ function updateDebugState() {
   };
 }
 
+function syncStreetLightDynamicLights(delta) {
+  if (environmentMode !== 'night') {
+    return;
+  }
+
+  streetLightUpdateTimer += delta;
+  if (streetLightUpdateTimer < STREET_LIGHT_UPDATE_INTERVAL) {
+    return;
+  }
+
+  streetLightUpdateTimer = 0;
+  updateStreetLightDynamicLights(lighting.streetLights, car.position);
+}
+
+function syncVehicleLights() {
+  const enabled = environmentMode === 'night';
+  const signature = `${enabled}:${Boolean(car?.userData.vehicleLights)}:${companionCars.length}`;
+
+  if (!vehicleLightsDirty && signature === vehicleLightSignature) {
+    return;
+  }
+
+  vehicleLightState = setVehicleLightsEnabled({
+    car,
+    companionCars,
+    enabled,
+  });
+  vehicleLightSignature = signature;
+  vehicleLightsDirty = false;
+}
+
 function updateCamera(t, delta) {
-  const point = trackCurve.getPointAt(t % 1);
+  const trackT = t % 1;
+  const point = getCurvePointAt(trackCurve, trackT, cameraTrackPoint);
   point.y = getSurfaceY(t % 1, point);
-  const tangent = trackCurve.getTangentAt(t % 1).normalize();
-  const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+  const tangent = getCurveTangentAt(trackCurve, trackT, cameraTangent);
+  const normal = cameraNormal.set(-tangent.z, 0, tangent.x).normalize();
   const sideDrift = viewport.width < 720 ? 3.4 : 5.2;
-  const cinematicOffset = normal.multiplyScalar(Math.sin(t * Math.PI * 2.3) * sideDrift);
+  const cinematicOffset = cameraOffset.copy(normal).multiplyScalar(Math.sin(t * Math.PI * 2.3) * sideDrift);
   const height = viewport.width < 720 ? 17 : 11;
   const distance = viewport.width < 720 ? 24 : 21.5;
 
-  const targetPosition = point
-    .clone()
-    .sub(tangent.clone().multiplyScalar(distance))
-    .add(cinematicOffset)
-    .add(new THREE.Vector3(0, height, 0));
+  const targetPosition = cameraTargetPosition
+    .copy(point)
+    .addScaledVector(tangent, -distance)
+    .add(cinematicOffset);
+  targetPosition.y += height;
 
   camera.position.lerp(targetPosition, 1 - Math.exp(-delta * 3));
 
-  const lookAhead = point.clone().add(tangent.multiplyScalar(4.2));
+  const lookAhead = cameraLookAhead.copy(point).addScaledVector(tangent, 4.2);
   lookAhead.y = point.y + 0.72;
   if (!hasCameraLookTarget) {
     cameraLookTarget.copy(lookAhead);
@@ -529,15 +626,33 @@ function updateCamera(t, delta) {
   camera.lookAt(cameraLookTarget);
 }
 
+function getCurvePointAt(curve, t, target) {
+  if (typeof curve.getPointAtInto === 'function') {
+    return curve.getPointAtInto(t, target);
+  }
+
+  return target.copy(curve.getPointAt(t));
+}
+
+function getCurveTangentAt(curve, t, target) {
+  if (typeof curve.getTangentAtInto === 'function') {
+    return curve.getTangentAtInto(t, target);
+  }
+
+  return target.copy(curve.getTangentAt(t)).normalize();
+}
+
 function getRealSurfaceY(_t, point) {
   return point?.y ?? 0;
 }
 
 function updateHud(t) {
-  lapProgress.style.transform = `scaleX(${THREE.MathUtils.clamp(t, 0, 1)})`;
+  if (lapProgress) {
+    lapProgress.style.transform = `scaleX(${THREE.MathUtils.clamp(t, 0, 1)})`;
+  }
 
   const segment = getSegmentName(t);
-  if (segmentName.textContent !== segment) {
+  if (segmentName && segmentName.textContent !== segment) {
     segmentName.textContent = segment;
   }
 }
@@ -556,11 +671,14 @@ function updateScrollState() {
 function updatePanels(t) {
   const activeStop = getActiveRouteStop(t);
   const activeStage = activeStop?.stage || 'home';
-  document.body.dataset.stage = activeStage;
 
-  document.querySelectorAll('[data-panel]').forEach((panel) => {
-    panel.dataset.active = String(panel.dataset.panel === activeStage);
-  });
+  if (currentPanelStage !== activeStage) {
+    document.body.dataset.stage = activeStage;
+    panelElements.forEach((panel) => {
+      panel.dataset.active = String(panel.dataset.panel === activeStage);
+    });
+    currentPanelStage = activeStage;
+  }
 
   updateRouteNavigation(t, activeStage);
 }
@@ -573,7 +691,7 @@ function updateRouteNavigation(t, activeStage) {
     routeProgressValue.textContent = `${Math.round(clampedProgress * 100)}%`;
   }
 
-  getRouteButtons().forEach((button) => {
+  routeButtons.forEach((button) => {
     const stopProgress = Number(button.dataset.routeProgress);
     const isActive = button.dataset.routeStage === activeStage;
     const isCompleted = Number.isFinite(stopProgress) && stopProgress < clampedProgress && !isActive;
@@ -584,18 +702,11 @@ function updateRouteNavigation(t, activeStage) {
 }
 
 function getRouteButtons() {
-  return [...document.querySelectorAll('[data-route-progress]')];
+  return routeButtons;
 }
 
 function getRouteStops() {
-  return getRouteButtons()
-    .map((button) => ({
-      stage: button.dataset.routeStage,
-      label: button.querySelector('strong')?.textContent || button.dataset.routeStage,
-      progress: Number(button.dataset.routeProgress),
-    }))
-    .filter((stop) => stop.stage && Number.isFinite(stop.progress))
-    .sort((left, right) => left.progress - right.progress);
+  return cachedRouteStops;
 }
 
 function getActiveRouteStop(t) {
@@ -626,9 +737,18 @@ function scrollToRaceProgress(targetProgress) {
 function handleResize() {
   viewport = { width: window.innerWidth, height: window.innerHeight };
   renderer.setSize(viewport.width, viewport.height);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+  renderer.setPixelRatio(getRenderPixelRatio());
   camera.aspect = viewport.width / viewport.height;
   camera.updateProjectionMatrix();
+}
+
+function getRenderPixelRatio() {
+  return Math.min(window.devicePixelRatio || 1, MAX_RENDER_PIXEL_RATIO);
+}
+
+function handleVisibilityChange() {
+  isPageVisible = !document.hidden;
+  lastFrameTime = performance.now();
 }
 
 function handlePointerMove(event) {
@@ -638,7 +758,7 @@ function handlePointerMove(event) {
 }
 
 function updateGridReadout() {
-  if (!camera || !gridCell || !gridPosition) {
+  if (!ENABLE_DEVELOPMENT_GRID || !camera || !gridCell || !gridPosition || !getGridCellFromPosition) {
     return;
   }
 

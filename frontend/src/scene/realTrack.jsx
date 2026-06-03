@@ -69,6 +69,7 @@ export async function loadRealTrackModel({ scene, version = "real-model" }) {
     model.updateMatrixWorld(true);
     const route = createDriveRoute(model, config);
     const streetLights = createStreetLightRig(model, config);
+    freezeStaticObject(model);
     scene.add(model);
     if (streetLights.group.children.length) {
       scene.add(streetLights.group);
@@ -175,6 +176,7 @@ function createStreetLightRig(model, config) {
     glow.name = "street-light-glow";
     glow.position.copy(position);
     glow.scale.set(4.8, 4.8, 1);
+    freezeStaticObject(glow);
     glowSprites.push(glow);
     group.add(glow);
 
@@ -184,6 +186,7 @@ function createStreetLightRig(model, config) {
     pool.rotation.x = -Math.PI / 2;
     pool.scale.setScalar(config.streetLightPoolSize ?? 13);
     pool.renderOrder = 2;
+    freezeStaticObject(pool);
     lightPools.push(pool);
     group.add(pool);
 
@@ -462,7 +465,7 @@ function createRoadSurfaceSampler(meshes, config) {
 
   return {
     getRoadY,
-    getSurfaceY: (_t, point) => getRoadY(point, point.y) ?? point.y,
+    getSurfaceY: (_t, point) => point.y - (config.routeYOffset ?? 0),
   };
 }
 
@@ -1125,6 +1128,8 @@ function createPolylineDriveCurve(points, closed, config) {
   const route = points.map((point) => point.clone());
   const segments = [];
   let totalLength = 0;
+  const tangentBefore = new THREE.Vector3();
+  const tangentAfter = new THREE.Vector3();
 
   for (let i = 0; i < route.length - 1; i += 1) {
     totalLength += addPolylineSegment(segments, route[i], route[i + 1], totalLength);
@@ -1141,25 +1146,41 @@ function createPolylineDriveCurve(points, closed, config) {
 
     const normalized = closed ? THREE.MathUtils.euclideanModulo(t, 1) : THREE.MathUtils.clamp(t, 0, 1);
     const distance = normalized * totalLength;
+    let low = 0;
+    let high = segments.length - 1;
 
-    for (const segment of segments) {
-      if (distance <= segment.end) {
-        return { segment, distance };
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (distance <= segments[middle].end) {
+        high = middle;
+      } else {
+        low = middle + 1;
       }
     }
 
-    return { segment: segments.at(-1), distance: totalLength };
+    return { segment: segments[low] ?? segments.at(-1), distance };
   }
 
-  function getPointAtNormalizedT(t) {
+  function getPointAtNormalizedT(t, target = new THREE.Vector3()) {
     const result = getSegmentAt(t);
     if (!result) {
-      return route[0]?.clone() ?? new THREE.Vector3();
+      return route[0] ? target.copy(route[0]) : target.set(0, 0, 0);
     }
 
     const { segment, distance } = result;
     const ratio = segment.length === 0 ? 0 : (distance - segment.start) / segment.length;
-    return segment.from.clone().lerp(segment.to, THREE.MathUtils.clamp(ratio, 0, 1));
+    return target.copy(segment.from).lerp(segment.to, THREE.MathUtils.clamp(ratio, 0, 1));
+  }
+
+  function getTangentAtNormalizedT(t, target = new THREE.Vector3()) {
+    if (!segments.length || totalLength <= 0) {
+      return target.set(0, 0, 1);
+    }
+
+    const tangentWindow = (config.routeTangentWindow ?? 7) / totalLength;
+    getPointAtNormalizedT(t - tangentWindow, tangentBefore);
+    getPointAtNormalizedT(t + tangentWindow, tangentAfter);
+    return target.copy(tangentAfter).sub(tangentBefore).normalize();
   }
 
   return {
@@ -1168,18 +1189,17 @@ function createPolylineDriveCurve(points, closed, config) {
     getPointAt(t) {
       return this.getPoint(t);
     },
+    getPointAtInto(t, target) {
+      return getPointAtNormalizedT(t, target);
+    },
     getTangent: (t) => {
-      if (!segments.length || totalLength <= 0) {
-        return new THREE.Vector3(0, 0, 1);
-      }
-
-      const tangentWindow = (config.routeTangentWindow ?? 7) / totalLength;
-      const before = getPointAtNormalizedT(t - tangentWindow);
-      const after = getPointAtNormalizedT(t + tangentWindow);
-      return after.sub(before).normalize();
+      return getTangentAtNormalizedT(t);
     },
     getTangentAt(t) {
       return this.getTangent(t);
+    },
+    getTangentAtInto(t, target) {
+      return getTangentAtNormalizedT(t, target);
     },
   };
 }
@@ -1206,6 +1226,14 @@ function getMaterialName(mesh) {
     ? mesh.material
     : [mesh.material];
   return materials.map((material) => material?.name ?? "").join(" ");
+}
+
+function freezeStaticObject(root) {
+  root.traverse((child) => {
+    child.updateMatrix();
+    child.matrixAutoUpdate = false;
+  });
+  root.updateMatrixWorld(true);
 }
 
 function addRealTrackPlaceholder(scene) {

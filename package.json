@@ -1,5 +1,5 @@
 {
-  "name": "paddockindia-spa-scroll",
+  "name": "paddockindia",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "migrate": "node backend/src/migrate.js",
     "start": "node backend/src/server.js",
     "test": "node --test backend/test/*.test.js",
-    "docker:build": "docker build -t paddockindia-spa-scroll ."
+    "docker:build": "docker build -t paddockindia ."
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",

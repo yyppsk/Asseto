@@ -1,4 +1,4 @@
-# Paddock India Spa Scroll
+# Paddock India
 
 A Node-served Vite + Three.js scroll experience where the car races around a real track model with day/night lighting and weather controls.
 
@@ -96,8 +96,8 @@ SMTP uses the same environment shape as the referenced projects: `SMTP_HOST`, `S
 ## Docker
 
 ```bash
-docker build -t paddockindia-spa-scroll .
-docker run --rm -p 3001:3001 --env-file .env paddockindia-spa-scroll
+docker build -t paddockindia .
+docker run --rm -p 3001:3001 --env-file .env paddockindia
 ```
 
 Or with Compose:
@@ -129,7 +129,7 @@ If you use an external Postgres service instead, set `DATABASE_URL=<external pos
 
 ## Fly
 
-`fly.toml` is included for Docker-based Fly deployment. Before deploying, change the `app` value if `paddockindia-spa-scroll` is not available in your Fly account.
+`fly.toml` is included for Docker-based Fly deployment. Before deploying, change the `app` value if `paddockindia` is not available in your Fly account.
 
 ```bash
 fly deploy

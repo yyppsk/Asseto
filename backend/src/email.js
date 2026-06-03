@@ -1,39 +1,39 @@
 import net from 'node:net';
+import { randomBytes } from 'node:crypto';
 import tls from 'node:tls';
+import {
+  renderEmailVerifiedEmail,
+  renderPasswordChangedEmail,
+  renderPasswordResetEmail,
+  renderWelcomeEmail,
+} from './emailTemplates.js';
 
 const DEFAULT_FROM = 'Paddock India <no-reply@paddockindia.local>';
 
 export async function sendWelcomeEmail({ to, displayName, verificationToken, origin }) {
   const verificationUrl = `${origin}/verify-email?token=${encodeURIComponent(verificationToken)}`;
-  await sendMail({
-    to,
-    subject: 'Welcome to Paddock India',
-    text: [
-      `Hi ${displayName || 'there'},`,
-      '',
-      'Welcome to Paddock India.',
-      `Verify your email here: ${verificationUrl}`,
-      '',
-      'Paddock India',
-    ].join('\n'),
-  });
+  await sendMail({ to, ...renderWelcomeEmail({ displayName, verificationUrl, siteUrl: origin }) });
 }
 
 export async function sendPasswordResetEmail({ to, resetToken, origin }) {
   const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(resetToken)}`;
-  await sendMail({
-    to,
-    subject: 'Reset your Paddock India password',
-    text: [
-      'We received a request to reset your Paddock India password.',
-      `Reset it here: ${resetUrl}`,
-      '',
-      'If this was not you, ignore this email.',
-    ].join('\n'),
-  });
+  await sendMail({ to, ...renderPasswordResetEmail({ resetUrl, siteUrl: origin }) });
 }
 
-export async function sendMail({ to, subject, text }) {
+export async function sendPasswordChangedEmail({ to, origin }) {
+  const forgotPasswordUrl = `${origin}/forgot-password`;
+  await sendMail({ to, ...renderPasswordChangedEmail({ forgotPasswordUrl, siteUrl: origin }) });
+}
+
+export async function sendEmailVerifiedConfirmation({ to, displayName, origin }) {
+  await sendMail({ to, ...renderEmailVerifiedEmail({ displayName, siteUrl: origin }) });
+}
+
+export async function sendMail({ to, subject, html, text }) {
+  if (!text) {
+    throw new Error('Plain-text email content is required.');
+  }
+
   if (!process.env.SMTP_HOST) {
     if (process.env.REQUIRE_SMTP === 'true') {
       throw new Error('SMTP_HOST is required to send email.');
@@ -44,7 +44,7 @@ export async function sendMail({ to, subject, text }) {
   }
 
   const client = new SmtpClient();
-  await client.send({ to, subject, text, from: process.env.MAIL_FROM || DEFAULT_FROM });
+  await client.send({ to, subject, html, text, from: process.env.MAIL_FROM || DEFAULT_FROM });
   return { skipped: false };
 }
 
@@ -164,19 +164,57 @@ class SmtpClient {
   }
 }
 
-function formatMessage({ from, to, subject, text }) {
+function formatMessage({ from, to, subject, html, text }) {
   const headers = [
-    `From: ${from}`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
+    `From: ${sanitizeHeader(from)}`,
+    `To: ${sanitizeHeader(to)}`,
+    `Subject: ${sanitizeHeader(subject)}`,
+    `Date: ${new Date().toUTCString()}`,
+    `Message-ID: <${randomBytes(16).toString('hex')}@paddockindia.local>`,
     'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=UTF-8',
   ];
-  return `${headers.join('\r\n')}\r\n\r\n${escapeData(text)}`;
+
+  if (!html) {
+    return escapeData([
+      ...headers,
+      'Content-Type: text/plain; charset=UTF-8',
+      'Content-Transfer-Encoding: 8bit',
+      '',
+      text,
+    ].join('\r\n'));
+  }
+
+  const boundary = `paddockindia-${randomBytes(12).toString('hex')}`;
+  const body = [
+    `--${boundary}`,
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    text,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    html,
+    '',
+    `--${boundary}--`,
+  ].join('\r\n');
+
+  return escapeData([
+    ...headers,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    '',
+    body,
+  ].join('\r\n'));
 }
 
 function escapeData(value) {
   return String(value || '').replace(/^\./gm, '..');
+}
+
+function sanitizeHeader(value) {
+  return String(value || '').replace(/[\r\n]+/g, ' ').trim();
 }
 
 function extractEmail(value) {

@@ -45,6 +45,12 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_SEND_TIMEOUT_MS: ${SMTP_SEND_TIMEOUT_MS:-10000}
       MAIL_FROM: ${MAIL_FROM:-Paddock India <no-reply@paddockindia.local>}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
+      EMAIL_LOGO_URL: ${EMAIL_LOGO_URL:-}
+      EMAIL_MARK_URL: ${EMAIL_MARK_URL:-}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-hello@paddockindia.local}
+      PRIVACY_URL: ${PRIVACY_URL:-}
+      TERMS_URL: ${TERMS_URL:-}
     ports:
       - "${APP_PORT:-3001}:3001"
     restart: unless-stopped

@@ -12,6 +12,7 @@
     "migrate": "node backend/src/migrate.js",
     "start": "node backend/src/server.js",
     "test": "node --test backend/test/*.test.js",
+    "email:previews": "node backend/scripts/render-email-previews.mjs",
     "docker:build": "docker build -t paddockindia ."
   },
   "dependencies": {

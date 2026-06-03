@@ -100,7 +100,7 @@ async function handleAuthRequest(request, response, url) {
 
   if (request.method === 'POST' && url.pathname === '/api/auth/reset-password') {
     enforceRateLimit(request, 'auth:reset', AUTH_LIMIT);
-    const result = await resetPassword({ payload: await readJsonBody(request) });
+    const result = await resetPassword({ payload: await readJsonBody(request), request });
     sendJson(response, 200, result);
     return;
   }

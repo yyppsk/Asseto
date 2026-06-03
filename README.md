@@ -75,6 +75,12 @@ SMTP_PORT=587
 SMTP_USER=...
 SMTP_PASS=...
 MAIL_FROM="Paddock India <no-reply@example.com>"
+APP_PUBLIC_URL=https://paddockindia.racing
+EMAIL_LOGO_URL=https://paddockindia.racing/assets/images/logos/email/paddock-india-email-logo.png
+EMAIL_MARK_URL=https://paddockindia.racing/assets/images/logos/email/paddock-india-email-mark.png
+SUPPORT_EMAIL=hello@paddockindia.racing
+PRIVACY_URL=
+TERMS_URL=
 ```
 
 `docker-compose.yml` includes a `postgres:16-alpine` service with a persistent `paddockindia_postgres_data` volume. Postgres is only published on `127.0.0.1:${POSTGRES_PORT:-5432}` for local access; the app talks to it internally through the `postgres` service name.
@@ -92,6 +98,8 @@ By default the server also runs pending migrations at startup when `DATABASE_URL
 The first super admin is created by signing up with an email listed in `SUPER_ADMIN_EMAILS`. Public signup users otherwise receive the `user` role. Promote additional admins from `/admin`.
 
 SMTP uses the same environment shape as the referenced projects: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SEND_TIMEOUT_MS`, `MAIL_FROM`, and `REQUIRE_SMTP`. Keep real credentials in deployment secrets only.
+
+Transactional email templates use `APP_PUBLIC_URL`, `EMAIL_LOGO_URL`, `EMAIL_MARK_URL`, `SUPPORT_EMAIL`, `PRIVACY_URL`, and `TERMS_URL` when present. Generate local previews with `npm run email:previews`; the HTML files are written to `tmp/email-previews/`.
 
 ## Docker
 

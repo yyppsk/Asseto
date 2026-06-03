@@ -1,5 +1,5 @@
 import { isDatabaseConfigured, query, withTransaction } from './database.js';
-import { sendPasswordResetEmail, sendWelcomeEmail } from './email.js';
+import { sendPasswordChangedEmail, sendPasswordResetEmail, sendWelcomeEmail } from './email.js';
 import { clearCookie, createHttpError, getClientIp, getRequestBaseUrl, parseCookies, setCookie } from './http.js';
 import {
   createOpaqueToken,
@@ -196,7 +196,7 @@ export async function forgotPassword({ payload, request }) {
   return { ok: true };
 }
 
-export async function resetPassword({ payload }) {
+export async function resetPassword({ payload, request }) {
   ensureDatabase();
   const passwordError = validatePassword(payload.password);
 
@@ -208,9 +208,10 @@ export async function resetPassword({ payload }) {
   const result = await withTransaction(async (client) => {
     const tokenResult = await client.query(
       `
-        SELECT id, user_id
-        FROM password_reset_tokens
-        WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > now()
+        SELECT prt.id, prt.user_id, u.email
+        FROM password_reset_tokens prt
+        JOIN users u ON u.id = prt.user_id
+        WHERE prt.token_hash = $1 AND prt.consumed_at IS NULL AND prt.expires_at > now()
         LIMIT 1
       `,
       [hashToken(payload.token)],
@@ -225,10 +226,11 @@ export async function resetPassword({ payload }) {
     await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, tokenRow.user_id]);
     await client.query('UPDATE password_reset_tokens SET consumed_at = now() WHERE id = $1', [tokenRow.id]);
     await client.query('UPDATE user_sessions SET revoked_at = now() WHERE user_id = $1', [tokenRow.user_id]);
-    return true;
+    return { email: tokenRow.email };
   });
 
-  return { ok: result };
+  await sendEmailSafely(() => sendPasswordChangedEmail({ to: result.email, origin: getRequestBaseUrl(request) }));
+  return { ok: true };
 }
 
 export async function verifyEmail({ payload }) {

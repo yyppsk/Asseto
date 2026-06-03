@@ -194,13 +194,7 @@ function renderTransactionalEmail({
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                   <tr>
                     <td align="left" style="vertical-align:middle;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;">
-                        <tr>
-                          <td style="background:#f4f1e8;border:1px solid #d9b76f;border-radius:10px;padding:8px 12px;">
-                            <img src="${escapeAttribute(logoUrl)}" width="160" height="48" alt="${BRAND}" style="display:block;border:0;outline:none;text-decoration:none;width:160px;height:auto;">
-                          </td>
-                        </tr>
-                      </table>
+                      <img src="${escapeAttribute(logoUrl)}" width="160" height="48" alt="${BRAND}" style="display:block;border:0;outline:none;text-decoration:none;width:160px;height:auto;">
                     </td>
                     <td align="right" style="vertical-align:middle;">
                       <img src="${escapeAttribute(markUrl)}" width="36" height="36" alt="" style="display:block;border:0;outline:none;text-decoration:none;width:36px;height:36px;border-radius:8px;">

@@ -1,5 +1,6 @@
 export function RaceHud() {
   const showDevelopmentGrid = import.meta.env.DEV;
+  const showDevelopmentStatus = import.meta.env.DEV;
 
   return (
     <>
@@ -22,11 +23,13 @@ export function RaceHud() {
         </aside>
       ) : null}
 
-      <aside className="track-version-status" aria-live="polite">
-        <span>Version</span>
-        <strong id="track-version-label">Version 2</strong>
-        <small id="track-version-detail">Loading real track variation</small>
-      </aside>
+      {showDevelopmentStatus ? (
+        <aside className="track-version-status" aria-live="polite">
+          <span>Version</span>
+          <strong id="track-version-label">Version 2</strong>
+          <small id="track-version-detail">Loading real track variation</small>
+        </aside>
+      ) : null}
 
       <div className="progress-rail" aria-hidden="true">
         <span id="lap-progress"></span>

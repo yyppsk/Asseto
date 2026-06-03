@@ -21,3 +21,13 @@ test('auth and content migration creates required tables and preserves seeded co
   assert.match(sql, /ON CONFLICT \(slug\) DO NOTHING/);
   assert.doesNotMatch(sql, /ON CONFLICT \(slug\) DO UPDATE/);
 });
+
+test('home and grid refresh migration only updates old seeded rows', async () => {
+  const sql = await readFile(resolve('backend/migrations/002_home_grid_refresh.sql'), 'utf8');
+
+  assert.match(sql, /WHERE slug = 'home'\s+AND title = 'Spa Track'/);
+  assert.match(sql, /WHERE slug = 'grid'\s+AND title = 'Lights Out'/);
+  assert.match(sql, /Paddock India/);
+  assert.match(sql, /Assetto Corsa/);
+  assert.match(sql, /NFS Server/);
+});

@@ -9,6 +9,10 @@ test('default content sections include planned dynamic navigation areas', () => 
   assert.deepEqual(slugs, ['home', 'grid', 'climb', 'sector', 'social', 'paddock', 'about', 'contact']);
   assert.equal(DEFAULT_CONTENT_SECTIONS[0].progress, 0);
   assert.equal(DEFAULT_CONTENT_SECTIONS.every((section) => section.isNavItem), true);
+  assert.equal(DEFAULT_CONTENT_SECTIONS[0].title, 'Paddock India');
+  assert.equal(DEFAULT_CONTENT_SECTIONS[1].progress, 0.08);
+  assert.equal(DEFAULT_CONTENT_SECTIONS[1].settings.games.length, 4);
+  assert.equal(DEFAULT_CONTENT_SECTIONS[1].settings.games[0].name, 'Assetto Corsa');
 });
 
 test('content payload sanitization clamps unsafe numeric values', () => {
@@ -52,4 +56,21 @@ test('database content rows normalize to frontend-safe casing', () => {
   assert.equal(section.navLabel, 'Home');
   assert.equal(section.progress, 0.25);
   assert.deepEqual(section.settings.links, []);
+});
+
+test('grid rows receive fallback game offerings when settings are missing', () => {
+  const section = normalizeContentSection({
+    id: 'grid-id',
+    slug: 'grid',
+    panel_key: 'grid',
+    nav_label: 'Grid',
+    nav_detail: 'Start',
+    is_nav_item: true,
+    is_published: true,
+    progress: '0.08',
+    settings: {},
+  });
+
+  assert.equal(section.settings.games.length, 4);
+  assert.equal(section.settings.games[1].name, 'NFS Server');
 });

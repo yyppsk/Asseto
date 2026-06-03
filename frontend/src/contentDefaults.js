@@ -1,3 +1,34 @@
+export const DEFAULT_GAME_OFFERINGS = [
+  {
+    id: 'asseto-corsa',
+    name: 'Assetto Corsa',
+    kicker: 'Sim racing',
+    description: 'Track days, community races, and curated server sessions.',
+    posterTone: 'scarlet',
+  },
+  {
+    id: 'nfs-server',
+    name: 'NFS Server',
+    kicker: 'Arcade racing',
+    description: 'Fast lobbies, casual runs, and high-energy weekend rooms.',
+    posterTone: 'amber',
+  },
+  {
+    id: 'demo-one',
+    name: 'Demo',
+    kicker: 'Coming soon',
+    description: 'Reserved for the next racing experience on the grid.',
+    posterTone: 'green',
+  },
+  {
+    id: 'demo-two',
+    name: 'Demo',
+    kicker: 'Coming soon',
+    description: 'A flexible slot for leagues, events, or partner servers.',
+    posterTone: 'blue',
+  },
+];
+
 export const DEFAULT_CONTENT_SECTIONS = [
   {
     id: 'home',
@@ -6,8 +37,8 @@ export const DEFAULT_CONTENT_SECTIONS = [
     navLabel: 'Home',
     navDetail: 'Welcome',
     eyebrow: 'Paddock India Racing',
-    title: 'Spa Track',
-    body: 'Race through the Ardennes, from the opening grid to the final chicane.',
+    title: 'Paddock India',
+    body: 'Start your engines',
     sortOrder: 10,
     progress: 0,
     isNavItem: true,
@@ -20,14 +51,14 @@ export const DEFAULT_CONTENT_SECTIONS = [
     panelKey: 'grid',
     navLabel: 'Grid',
     navDetail: 'Start',
-    eyebrow: 'Start Grid',
-    title: 'Lights Out',
-    body: 'The paddock clears, the race line opens, and the cars settle into position.',
+    eyebrow: 'Grid',
+    title: 'Start Grid',
+    body: 'Choose your racing room, line up with the community, and roll into the opening lap.',
     sortOrder: 20,
     progress: 0.08,
     isNavItem: true,
     isPublished: true,
-    settings: { tone: 'race', links: [] },
+    settings: { tone: 'race', links: [], games: DEFAULT_GAME_OFFERINGS },
   },
   {
     id: 'climb',
@@ -138,17 +169,27 @@ export const DEFAULT_CONTENT_SECTIONS = [
 export function normalizeSections(sections) {
   return (Array.isArray(sections) && sections.length ? sections : DEFAULT_CONTENT_SECTIONS)
     .filter((section) => section?.isPublished !== false)
-    .map((section) => ({
-      ...section,
-      id: section.id || section.slug,
-      panelKey: section.panelKey || section.slug,
-      navLabel: section.navLabel || section.title,
-      navDetail: section.navDetail || '',
-      progress: Number(section.progress || 0),
-      settings: {
-        ...(section.settings || {}),
-        links: Array.isArray(section.settings?.links) ? section.settings.links : [],
-      },
-    }))
+    .map((section) => {
+      const panelKey = section.panelKey || section.slug;
+      const isGridSection = panelKey === 'grid' || section.id === 'grid' || section.slug === 'grid';
+
+      return {
+        ...section,
+        id: section.id || section.slug,
+        panelKey,
+        navLabel: section.navLabel || section.title,
+        navDetail: section.navDetail || '',
+        progress: Number(section.progress || 0),
+        settings: {
+          ...(section.settings || {}),
+          links: Array.isArray(section.settings?.links) ? section.settings.links : [],
+          games: Array.isArray(section.settings?.games) && section.settings.games.length
+            ? section.settings.games
+            : isGridSection
+              ? DEFAULT_GAME_OFFERINGS
+              : [],
+        },
+      };
+    })
     .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0));
 }

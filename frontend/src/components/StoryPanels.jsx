@@ -14,15 +14,61 @@ export function StoryPanels({ sections }) {
           data-panel={section.panelKey}
           data-active={index === 0}
         >
-          <div className={getCopyClass(section)}>
-            <p className="eyebrow">{section.eyebrow}</p>
-            {index === 0 ? <h1>{section.title}</h1> : <h2>{section.title}</h2>}
-            {section.body ? <p>{section.body}</p> : null}
-            {section.settings?.links?.length ? <DetailList items={section.settings.links} external={section.panelKey === 'social'} /> : null}
-          </div>
+          {index === 0 ? <HomeIntro section={section} /> : <StorySectionContent section={section} />}
         </section>
       ))}
     </main>
+  );
+}
+
+function HomeIntro({ section }) {
+  return (
+    <div className="home-intro">
+      <div className="home-intro__copy">
+        <p className="eyebrow">{section.eyebrow}</p>
+        <h1>{section.title}</h1>
+        {section.body ? <p className="home-intro__start">{section.body}</p> : null}
+      </div>
+      <div className="scroll-cue" aria-hidden="true">
+        <span></span>
+      </div>
+    </div>
+  );
+}
+
+function StorySectionContent({ section }) {
+  const isGrid = section.panelKey === 'grid';
+  const hasGames = isGrid && section.settings?.games?.length;
+
+  return (
+    <div className={['story-section__inner', isGrid ? 'story-section__inner--grid' : ''].filter(Boolean).join(' ')}>
+      {hasGames ? <GameOfferings games={section.settings.games} /> : null}
+      <div className={getCopyClass(section)}>
+        <p className="eyebrow">{section.eyebrow}</p>
+        <h2>{section.title}</h2>
+        {section.body ? <p>{section.body}</p> : null}
+        {section.settings?.links?.length ? <DetailList items={section.settings.links} external={section.panelKey === 'social'} /> : null}
+      </div>
+    </div>
+  );
+}
+
+function GameOfferings({ games }) {
+  return (
+    <aside className="game-offerings" aria-label="Racing games offered">
+      {games.map((game, index) => (
+        <article className="game-card" data-tone={game.posterTone || 'scarlet'} key={game.id || `${game.name}-${index}`}>
+          <div className="game-card__poster" aria-hidden="true">
+            <img src="/assets/images/paddockindia-ui-car-small.png" alt="" />
+          </div>
+          <div className="game-card__copy">
+            <span>{game.kicker || 'Racing'}</span>
+            <strong>{game.name}</strong>
+            {game.description ? <p>{game.description}</p> : null}
+          </div>
+        </article>
+      ))}
+    </aside>
   );
 }
 

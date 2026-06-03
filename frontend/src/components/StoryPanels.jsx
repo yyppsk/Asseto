@@ -26,7 +26,25 @@ function HomeIntro({ section }) {
     <div className="home-intro">
       <div className="home-intro__copy">
         <p className="eyebrow">{section.eyebrow}</p>
-        <h1>{section.title}</h1>
+        <h1 className="home-intro__brand" aria-label={section.title}>
+          <span className="home-intro__title-text">{section.title}</span>
+          <img
+            className="home-intro__logo home-intro__logo--night"
+            src="/assets/images/logos/paddock-india-wide-night.webp"
+            alt=""
+            aria-hidden="true"
+            draggable="false"
+            fetchPriority="high"
+          />
+          <img
+            className="home-intro__logo home-intro__logo--day"
+            src="/assets/images/logos/paddock-india-wide-day.webp"
+            alt=""
+            aria-hidden="true"
+            draggable="false"
+            fetchPriority="high"
+          />
+        </h1>
         {section.body ? <p className="home-intro__start">{section.body}</p> : null}
       </div>
       <div className="scroll-cue" aria-hidden="true">
@@ -57,9 +75,9 @@ function GameOfferings({ games }) {
   return (
     <aside className="game-offerings" aria-label="Racing games offered">
       {games.map((game, index) => (
-        <article className="game-card" data-tone={game.posterTone || 'scarlet'} key={game.id || `${game.name}-${index}`}>
+        <article className="game-card" data-has-poster={game.posterImage ? 'true' : 'false'} data-tone={game.posterTone || 'scarlet'} key={game.id || `${game.name}-${index}`}>
           <div className="game-card__poster" aria-hidden="true">
-            <img src="/assets/images/paddockindia-ui-car-small.png" alt="" />
+            <img src={game.posterImage || '/assets/images/paddockindia-ui-car-small.png'} alt="" loading="lazy" draggable="false" />
           </div>
           <div className="game-card__copy">
             <span>{game.kicker || 'Racing'}</span>

@@ -1,0 +1,21 @@
+{
+  "name": "Paddock India",
+  "short_name": "Paddock India",
+  "description": "Paddock India racing community experience.",
+  "icons": [
+    {
+      "src": "/assets/images/logos/favicon%20pack/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/images/logos/favicon%20pack/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "theme_color": "#07090b",
+  "background_color": "#07090b",
+  "display": "standalone"
+}

@@ -7,10 +7,24 @@
       name="description"
       content="A scroll-driven Spa-Francorchamps racing experience built with Vite, React, and Three.js."
     />
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%230b0f13'/%3E%3Cpath d='M12 42c8-18 19-24 34-20 7 2 9 10 4 16-6 7-22 7-38 4Z' fill='%23d9203a'/%3E%3Cpath d='M18 42h31' stroke='%23ffce56' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E"
-    />
+    <meta name="theme-color" content="#f4f1e8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#07090b" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/assets/images/logos/favicon%20pack/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/logos/favicon%20pack/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/logos/favicon%20pack/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/logos/favicon%20pack/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="preload" as="image" type="image/webp" href="/assets/images/logos/paddock-india-wide-night.webp" />
+    <script>
+      (() => {
+        try {
+          const savedMode = window.localStorage?.getItem('paddockindia-environment-mode');
+          document.documentElement.dataset.environment = savedMode === 'day' ? 'day' : 'night';
+        } catch {
+          document.documentElement.dataset.environment = 'night';
+        }
+      })();
+    </script>
     <title>Paddock India Spa Track</title>
   </head>
   <body>

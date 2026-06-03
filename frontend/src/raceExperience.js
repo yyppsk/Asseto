@@ -192,7 +192,7 @@ function cleanupRaceExperience(runId = activeRunId) {
 
 async function init(runId) {
   document.body.dataset.trackVersion = ACTIVE_TRACK_VERSION;
-  document.body.dataset.environment = environmentMode;
+  setEnvironmentDataset(environmentMode);
   document.body.dataset.weather = weatherMode;
   document.body.dataset.wind = String(windEnabled);
   updateTrackVersionStatus('loading');
@@ -378,8 +378,13 @@ function applyEnvironmentMode(mode) {
     return;
   }
 
-  document.body.dataset.environment = mode;
+  setEnvironmentDataset(mode);
   applyEnvironmentPreset({ mode, scene, renderer, lighting, terrain });
+}
+
+function setEnvironmentDataset(mode) {
+  document.documentElement.dataset.environment = mode;
+  document.body.dataset.environment = mode;
 }
 
 function updateEnvironmentControls() {

@@ -30,4 +30,17 @@ test('home and grid refresh migration only updates old seeded rows', async () =>
   assert.match(sql, /Paddock India/);
   assert.match(sql, /Assetto Corsa/);
   assert.match(sql, /NFS Server/);
+  assert.match(sql, /assetto-corsa\.webp/);
+  assert.match(sql, /need-for-speed-unbound\.webp/);
+});
+
+test('game poster migration enriches existing grid settings only', async () => {
+  const sql = await readFile(resolve('backend/migrations/003_game_poster_assets.sql'), 'utf8');
+
+  assert.match(sql, /WHERE slug = 'grid'/);
+  assert.match(sql, /jsonb_set/);
+  assert.match(sql, /asseto-corsa/);
+  assert.match(sql, /nfs-server/);
+  assert.match(sql, /assetto-corsa\.webp/);
+  assert.match(sql, /need-for-speed-unbound\.webp/);
 });

@@ -5,6 +5,7 @@ export const DEFAULT_GAME_OFFERINGS = [
     kicker: 'Sim racing',
     description: 'Track days, community races, and curated server sessions.',
     posterTone: 'scarlet',
+    posterImage: '/assets/images/games/assetto-corsa.webp',
   },
   {
     id: 'nfs-server',
@@ -12,6 +13,7 @@ export const DEFAULT_GAME_OFFERINGS = [
     kicker: 'Arcade racing',
     description: 'Fast lobbies, casual runs, and high-energy weekend rooms.',
     posterTone: 'amber',
+    posterImage: '/assets/images/games/need-for-speed-unbound.webp',
   },
   {
     id: 'demo-one',
@@ -200,16 +202,24 @@ export function normalizeSettings(settings, section = {}) {
     games: Array.isArray(settings.games) && settings.games.length
       ? settings.games
           .filter((game) => game && typeof game === 'object')
-          .map((game, index) => ({
-            id: String(game.id || `game-${index}`).trim(),
-            name: String(game.name || '').trim(),
-            kicker: String(game.kicker || '').trim(),
-            description: String(game.description || '').trim(),
-            posterTone: String(game.posterTone || 'scarlet').trim(),
-          }))
+          .map((game, index) => normalizeGameOffering(game, index))
           .filter((game) => game.name)
       : isGridSection
         ? DEFAULT_GAME_OFFERINGS
         : [],
+  };
+}
+
+function normalizeGameOffering(game, index) {
+  const id = String(game.id || `game-${index}`).trim();
+  const fallback = DEFAULT_GAME_OFFERINGS.find((offering) => offering.id === id);
+
+  return {
+    id,
+    name: String(game.name || fallback?.name || '').trim(),
+    kicker: String(game.kicker || fallback?.kicker || '').trim(),
+    description: String(game.description || fallback?.description || '').trim(),
+    posterTone: String(game.posterTone || fallback?.posterTone || 'scarlet').trim(),
+    posterImage: String(game.posterImage || game.poster_image || fallback?.posterImage || '').trim(),
   };
 }

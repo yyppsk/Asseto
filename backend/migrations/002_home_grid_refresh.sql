@@ -20,14 +20,16 @@ SET
         "name": "Assetto Corsa",
         "kicker": "Sim racing",
         "description": "Track days, community races, and curated server sessions.",
-        "posterTone": "scarlet"
+        "posterTone": "scarlet",
+        "posterImage": "/assets/images/games/assetto-corsa.webp"
       },
       {
         "id": "nfs-server",
         "name": "NFS Server",
         "kicker": "Arcade racing",
         "description": "Fast lobbies, casual runs, and high-energy weekend rooms.",
-        "posterTone": "amber"
+        "posterTone": "amber",
+        "posterImage": "/assets/images/games/need-for-speed-unbound.webp"
       },
       {
         "id": "demo-one",

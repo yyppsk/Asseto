@@ -13,6 +13,7 @@ test('default content sections include planned dynamic navigation areas', () => 
   assert.equal(DEFAULT_CONTENT_SECTIONS[1].progress, 0.08);
   assert.equal(DEFAULT_CONTENT_SECTIONS[1].settings.games.length, 4);
   assert.equal(DEFAULT_CONTENT_SECTIONS[1].settings.games[0].name, 'Assetto Corsa');
+  assert.equal(DEFAULT_CONTENT_SECTIONS[1].settings.games[0].posterImage, '/assets/images/games/assetto-corsa.webp');
 });
 
 test('content payload sanitization clamps unsafe numeric values', () => {
@@ -73,4 +74,31 @@ test('grid rows receive fallback game offerings when settings are missing', () =
 
   assert.equal(section.settings.games.length, 4);
   assert.equal(section.settings.games[1].name, 'NFS Server');
+  assert.equal(section.settings.games[1].posterImage, '/assets/images/games/need-for-speed-unbound.webp');
+});
+
+test('grid rows enrich existing game settings with poster assets', () => {
+  const section = normalizeContentSection({
+    id: 'grid-id',
+    slug: 'grid',
+    panel_key: 'grid',
+    nav_label: 'Grid',
+    nav_detail: 'Start',
+    is_nav_item: true,
+    is_published: true,
+    progress: '0.08',
+    settings: {
+      games: [
+        {
+          id: 'asseto-corsa',
+          name: 'Assetto Corsa',
+          kicker: 'Sim racing',
+          description: 'Track days.',
+          posterTone: 'scarlet',
+        },
+      ],
+    },
+  });
+
+  assert.equal(section.settings.games[0].posterImage, '/assets/images/games/assetto-corsa.webp');
 });

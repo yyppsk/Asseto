@@ -113,6 +113,7 @@ export function updateCompanionCars({
     if (!group.userData.hasTrackPosition) {
       group.position.copy(targetPosition);
       group.userData.hasTrackPosition = true;
+      group.visible = true;
     } else {
       group.position.lerp(targetPosition, 1 - Math.exp(-delta * 8));
     }
@@ -188,6 +189,7 @@ function createCompanionCars({ scene, companionCars, sourceModel }) {
     const group = new THREE.Group();
     group.name = config.name;
     group.scale.setScalar(config.scale);
+    group.visible = false;
 
     const model = sourceModel.clone(true);
     tintCompanionCar(model, config);
